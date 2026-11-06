@@ -28,7 +28,7 @@ O objetivo é **rápido e barato**: ~10 s por vídeo, resposta curta, zero chama
 7. **Não reexplique o que a saída já diz.** Repasse o resumo; se resumir, mantenha: nota, o que está bom, os itens de MELHORAR (o quê, por quê, como) e o link do relatório.
 
 ## Como responder
-1. Rode `analyze` (use `--json` se precisar dos números). Comece pelo **VEREDITO** em linguagem direta (ex.: "o gancho está bom, mas o roteiro precisa melhorar porque…"), diga de onde veio o texto lido, depois nota geral, pico do gancho, sustentação, regiões, cenas fracas e o link do relatório HTML.
+1. Rode `analyze` uma vez (saída curta). Comece pelo **VEREDITO** em linguagem direta (ex.: "o gancho está bom, mas o roteiro precisa melhorar porque…"), depois nota, o que melhorar e o link do relatório HTML. Regiões e cenas só se o usuário pedir (`--format completo`).
 2. Para **cada vídeo**, diga o que pode melhorar, com **o quê, por quê e como** (a saída já traz isso por área: gancho, roteiro, imagem, áudio, retenção). Inclua o intervalo de segundos quando houver.
 3. Se houver probabilidade calibrada, cite junto a AUC e o n. Se não houver, diga que ainda faltam vídeos com métrica real (mínimo 20).
 4. Ofereça registrar a métrica real do vídeo depois de alguns dias (`learn`), porque é assim que a ferramenta melhora no canal.
