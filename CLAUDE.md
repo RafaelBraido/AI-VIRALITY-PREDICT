@@ -19,4 +19,4 @@ Projeto Python (`viralscope/`) que analisa vídeos curtos com sinais medidos no 
 - Não chamar a API da Higgsfield, não usar login deles, não copiar código GPL (o `bsisduck/video-analyzer-skill` é GPL-3.0).
 - O veredito deve ser coerente: problema grave (prioridade ≥ 0,85) impede o selo "bom" da área.
 - Português do Brasil em textos para o usuário.
-- A skill está em `skills/viralscope/SKILL.md`; mantenha-a alinhada com o CLI.
+- A skill está em `skills/ViewerPredictor/SKILL.md`; mantenha-a alinhada com o CLI.

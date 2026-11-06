@@ -108,7 +108,7 @@ Cada registro reajusta o modelo do canal (`./.viralscope/`, ou `$VIRALSCOPE_HOME
 
 1. **Plugin (skill + MCP, o mais fácil):** `/plugin marketplace add RafaelBraido/AI-VIRALITY-PREDICT` e `/plugin install viralscope@viralscope`.
 2. **Só o servidor MCP:** `pip install git+https://github.com/RafaelBraido/AI-VIRALITY-PREDICT` e `claude mcp add viralscope -- viralscope-mcp`. O Claude ganha as ferramentas `analyze_video`, `analyze_script`, `rank_hooks`, `analyze_image` e `learn`; é só passar o caminho do vídeo.
-3. **Só a skill:** copie `skills/viralscope` para `~/.claude/skills/` (ou envie a pasta como skill no Claude.ai).
+3. **Só a skill:** copie `skills/ViewerPredictor` para `~/.claude/skills/` (ou envie a pasta como skill no Claude.ai).
 
 ## Calibração (o caminho para uma probabilidade real)
 

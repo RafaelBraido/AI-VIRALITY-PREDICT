@@ -1,5 +1,5 @@
 ---
-name: viralscope
+name: ViewerPredictor
 description: Analisa um vídeo curto (Short, Reel, TikTok) ou roteiro e devolve nota 0-100, gancho dos 3 primeiros segundos, sustentação, regiões Visual/Auditory/Language/Attention/Default Mode, qualidade da imagem, áudio, legenda e correções priorizadas com o trecho exato; aprende com as métricas reais do canal. Use quando o usuário pedir para analisar, pontuar, comparar ou melhorar um vídeo curto, um gancho, um roteiro ou uma thumbnail, ou perguntar se um vídeo "vai viralizar".
 ---
 
