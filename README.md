@@ -17,7 +17,8 @@ pip install -e .                 # tudo incluso: OpenCV, leitura de texto na tel
 ## Uso
 
 ```bash
-viralscope analyze video.mp4                          # texto em português + relatório HTML em ./viralscope_reports
+viralscope analyze a.mp4 b.mp4 c.mp4                  # resumo curto (veredito + o que melhorar + ranking) e HTML em ./viralscope_reports
+viralscope analyze video.mp4 --format completo        # regiões, cenas, sinais medidos, tudo
 viralscope analyze video.mp4 --format higgsfield      # mesmo resumo do Virality Predictor
 viralscope analyze entrevista.mp3                     # só áudio também funciona
 viralscope analyze video.mp4 --transcript roteiro.txt # (opcional) se você tiver o roteiro/legenda
@@ -124,7 +125,7 @@ pytest
 
 ## Velocidade
 
-~15 s por vídeo de 1 min (4 vídeos de 1080x1920 em ~1 min): o OCR lê só a faixa das legendas, em paralelo, enquanto o vídeo e o áudio são analisados. `--no-ocr` pula a leitura do texto (~8 s).
+~10 s por vídeo de 1 min (4 vídeos 1080x1920 em ~45 s): uma única decodificação (ffmpeg, já reduzida), OCR só na faixa das legendas em processos paralelos, saída curta por padrão. `--no-ocr` pula a leitura do texto (~8 s).
 
 ## Limites
 

@@ -12,10 +12,14 @@ Analisador local (sem login, sem API paga). Código em `viralscope/`; CLI `viral
 2. Se o usuário não deu o caminho do vídeo/áudio, peça. Aceita MP4, MOV, WEBM, MP3, WAV, M4A.
 
 ## Comandos
-- Vídeo ou áudio: `viralscope analyze ARQUIVO [--platform shorts|tiktok|reels]`. O texto (legenda embutida, .srt ao lado, texto na tela por OCR) é achado sozinho; `--transcript` só se o usuário tiver o roteiro. `--format higgsfield` para o resumo no formato Higgsfield.
+- Vídeo ou áudio: `viralscope analyze A.mp4 B.mp4 C.mp4 [--platform shorts|tiktok|reels]` (vários de uma vez; ~10 s por vídeo; saída curta com VEREDITO, MELHORAR e RANKING). O texto (legenda embutida, .srt ao lado, texto na tela por OCR) é achado sozinho; `--transcript` só se o usuário tiver o roteiro. `--format completo` só se o usuário pedir regiões/cenas; `--format higgsfield` para o formato Higgsfield.
 - Comparar: `viralscope compare A B` · Canal inteiro: `viralscope batch PASTA --csv rank.csv`
 - Thumbnail: `viralscope image IMG` · Ganchos: `viralscope hooks ARQ` · Roteiro: `viralscope script ARQ`
 - Aprender: depois que o vídeo tiver métrica real (retenção %, views em 7 dias), `viralscope learn VIDEO --target N`. Em lote: `viralscope learn --import arq.csv` (video,target). Estado: `viralscope learn --status`.
+
+## Economia (obrigatório)
+- **Uma chamada para todos os vídeos.** Não rode um por vez, não repita a análise, não leia o HTML nem o JSON: o resumo já tem o que importa.
+- Responda em poucas linhas: nota, o que está bom, o que melhorar (máx. 5 itens) e o link do relatório.
 
 ## Como responder
 1. Rode `analyze` (use `--json` se precisar dos números). Comece pelo **VEREDITO** em linguagem direta (ex.: "o gancho está bom, mas o roteiro precisa melhorar porque…"), diga de onde veio o texto lido, depois nota geral, pico do gancho, sustentação, regiões, cenas fracas e o link do relatório HTML.

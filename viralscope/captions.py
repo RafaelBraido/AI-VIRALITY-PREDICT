@@ -15,6 +15,7 @@ import subprocess
 import cv2
 import numpy as np
 
+from . import decode
 from . import frames as F
 from . import text as text_mod
 
@@ -94,58 +95,103 @@ def _worker_init():
     os.environ["OMP_NUM_THREADS"] = "1"  # N processos x 1 thread rende mais que 1 processo x N threads
 
 
+def _worker_noop():
+    _engine()  # carrega o modelo de OCR já no processo novo
+    return 0
+
+
 def _worker_read(args):
     img, min_conf = args
     eng = _engine()
     return _lines(eng, img, min_conf) if eng is not None else []
 
 
-def ocr_start(path: str, duration: float, rate: float = 1.5, max_samples: int = 90, min_conf: float = 0.6):
-    """Decodifica os quadros com legenda e DISPARA a leitura em processos (não espera). Termine com ocr_finish."""
+def ocr_start(path: str, duration: float, meta: dict | None = None, rate: float = 1.5, max_samples: int = 90,
+              min_conf: float = 0.6):
+    """Decodifica (ffmpeg, só a faixa das legendas) e DISPARA a leitura em processos assim que cada quadro chega.
+    Não espera: termine com ocr_finish."""
     if _engine() is None:
         return None
-    cap = cv2.VideoCapture(path)
-    if not cap.isOpened():
-        return None
-    fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+    if meta is None:
+        from . import video as _v
+        meta = _v.probe(path)
     total = duration or 60.0
     rate = min(rate, max_samples / max(total, 1.0))
-    step = max(1, int(round(fps / rate)))
-    plan: list[tuple[float, int | None, int | None]] = []  # (t, idx do job, idx do job a reaproveitar)
-    jobs, prev_gray, prev_job, idx = [], None, None, 0
-    while True:
-        if not cap.grab():
-            break
-        if idx % step == 0:
-            ok, frame = cap.retrieve()
-            if ok:
-                t = idx / fps
-                H0 = frame.shape[0]
-                # legendas ficam na metade de baixo: lê só essa faixa e devolve y no quadro todo
-                small = F.resize_width(frame[int(H0 * BAND[0]):int(H0 * BAND[1])], 440)
-                g = cv2.cvtColor(cv2.resize(small, (48, 40)), cv2.COLOR_BGR2GRAY)
-                if prev_gray is not None and float(np.mean(cv2.absdiff(g, prev_gray))) < 1.5:
-                    plan.append((t, prev_job))  # quadro praticamente igual: reaproveita a leitura anterior
-                elif not F.text_regions(small):
-                    plan.append((t, None))
-                    prev_job = None
-                else:
-                    jobs.append((small, min_conf))
-                    prev_job = len(jobs) - 1
-                    plan.append((t, prev_job))
-                prev_gray = g
-        idx += 1
-    cap.release()
-    workers = min(max(1, (os.cpu_count() or 1) - 1), 4, max(1, len(jobs) // 6))
-    ex, futs = None, None
+    workers = min(max(1, (os.cpu_count() or 1) - 1), 4)
+    ex = None
     if workers > 1:
         try:
             import concurrent.futures as cf
             ex = cf.ProcessPoolExecutor(max_workers=workers, initializer=_worker_init)
-            futs = [ex.submit(_worker_read, j) for j in jobs]
         except Exception:
-            ex, futs = None, None
-    return {"plan": plan, "jobs": jobs, "ex": ex, "futs": futs, "dt": step / fps}
+            ex = None
+    plan, jobs, futs = [], [], []
+    prev_gray, prev_job = None, None
+    for n, small in enumerate(decode.frames(path, rate, 440, meta["width"], meta["height"], crop=BAND)):
+        t = n / rate
+        g = cv2.cvtColor(cv2.resize(small, (48, 40)), cv2.COLOR_BGR2GRAY)
+        if prev_gray is not None and float(np.mean(cv2.absdiff(g, prev_gray))) < 1.5:
+            plan.append((t, prev_job))  # quadro praticamente igual: reaproveita a leitura anterior
+        elif not F.text_regions(small):
+            plan.append((t, None))
+            prev_job = None
+        else:
+            jobs.append((small, min_conf))
+            if ex is not None:
+                try:
+                    futs.append(ex.submit(_worker_read, (small, min_conf)))
+                except Exception:
+                    ex, futs = None, []
+            prev_job = len(jobs) - 1
+            plan.append((t, prev_job))
+        prev_gray = g
+    return {"plan": plan, "jobs": jobs, "ex": ex, "futs": futs if ex is not None else None, "dt": 1.0 / rate}
+
+
+class OcrStream:
+    """OCR que pega carona nos quadros já decodificados pela análise de vídeo (sem 2ª decodificação)."""
+
+    def __init__(self, sample_fps: float, rate: float = 1.0, min_conf: float = 0.6):
+        self.sample_fps, self.min_conf = sample_fps, min_conf
+        self.every = max(1, int(round(sample_fps / rate)))
+        self.plan, self.jobs, self.futs = [], [], []
+        self.prev_gray, self.prev_job, self.ex = None, None, None
+        workers = min(max(1, (os.cpu_count() or 1) - 1), 4)
+        if _engine() is not None and workers > 1:
+            try:
+                import concurrent.futures as cf
+                self.ex = cf.ProcessPoolExecutor(max_workers=workers, initializer=_worker_init)
+                # o 1º submit já cria TODOS os processos (fork) agora, antes de existir qualquer thread: seguro e sem espera depois
+                self.ex.submit(_worker_noop)
+            except Exception:
+                self.ex = None
+
+    def feed(self, n: int, frame) -> None:
+        if n % self.every or _engine() is None:
+            return
+        H = frame.shape[0]
+        small = frame[int(H * BAND[0]):int(H * BAND[1])]
+        t = n / self.sample_fps
+        g = cv2.cvtColor(cv2.resize(small, (48, 40)), cv2.COLOR_BGR2GRAY)
+        if self.prev_gray is not None and float(np.mean(cv2.absdiff(g, self.prev_gray))) < 1.5:
+            self.plan.append((t, self.prev_job))
+        elif not F.text_regions(small):
+            self.plan.append((t, None))
+            self.prev_job = None
+        else:
+            self.jobs.append((small.copy(), self.min_conf))
+            if self.ex is not None:
+                try:
+                    self.futs.append(self.ex.submit(_worker_read, (small.copy(), self.min_conf)))
+                except Exception:
+                    self.ex, self.futs = None, []
+            self.prev_job = len(self.jobs) - 1
+            self.plan.append((t, self.prev_job))
+        self.prev_gray = g
+
+    def handle(self) -> dict:
+        return {"plan": self.plan, "jobs": self.jobs, "ex": self.ex,
+                "futs": self.futs if self.ex is not None else None, "dt": self.every / self.sample_fps}
 
 
 def ocr_finish(h):
@@ -164,8 +210,8 @@ def ocr_finish(h):
     return [(t, results[j] if j is not None else []) for t, j in h["plan"]], h["dt"]
 
 
-def ocr_collect(path: str, duration: float):
-    return ocr_finish(ocr_start(path, duration))
+def ocr_collect(path: str, duration: float, meta: dict | None = None):
+    return ocr_finish(ocr_start(path, duration, meta))
 
 
 def _is_name_tag(text: str) -> bool:
@@ -238,7 +284,7 @@ def ocr_read(path: str, duration: float):
     return ocr_assemble(samples, dt)
 
 
-def prepare(path: str, duration: float, transcript=None, ocr: bool = True) -> dict:
+def prepare(path: str, duration: float, transcript=None, ocr: bool = True, meta: dict | None = None) -> dict:
     """Resolve o que é rápido (texto enviado, .srt, legenda embutida); se não achar, já DISPARA o OCR em segundo plano."""
     if transcript:
         return {"cues": text_mod.parse(transcript), "source": "texto enviado por você", "extra": {}, "ocr": None}
@@ -248,7 +294,8 @@ def prepare(path: str, duration: float, transcript=None, ocr: bool = True) -> di
     c = embedded(path)
     if c:
         return {"cues": c, "source": "legenda embutida no arquivo", "extra": {}, "ocr": None}
-    return {"cues": None, "source": None, "extra": {}, "ocr": ocr_start(path, duration) if ocr else None}
+    return {"cues": None, "source": None, "extra": {}, "ocr": None,
+            "stream": OcrStream(8.0) if (ocr and _engine() is not None) else None}
 
 
 def resolve(pre: dict, path: str, do_transcribe: bool = False):
@@ -256,8 +303,9 @@ def resolve(pre: dict, path: str, do_transcribe: bool = False):
     if pre["cues"]:
         return pre["cues"], pre["source"], pre["extra"]
     extra = {}
-    if pre["ocr"] is not None:
-        c, extra = ocr_assemble(*ocr_finish(pre["ocr"]))
+    h = pre["stream"].handle() if pre.get("stream") is not None else pre.get("ocr")
+    if h is not None:
+        c, extra = ocr_assemble(*ocr_finish(h))
         if c and sum(count_words(t) for _, _, t in c) >= 3:
             return c, "texto lido na tela (OCR)", extra
     if do_transcribe:

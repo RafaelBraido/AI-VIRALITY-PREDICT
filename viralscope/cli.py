@@ -33,18 +33,33 @@ def _write_report(r: dict, path: str, out_dir: str) -> str:
 
 
 def cmd_analyze(args) -> int:
-    if not os.path.isfile(args.video):
-        print(f"Arquivo não encontrado: {args.video}", file=sys.stderr)
+    files = args.video
+    missing = [f for f in files if not os.path.isfile(f)]
+    if missing:
+        print(f"Arquivo não encontrado: {missing[0]}", file=sys.stderr)
         return 2
-    r = _run(args.video, args)
-    url = None if (args.no_report or r.get("mode") == "audio") else _write_report(r, args.video, args.out_dir)
-    if args.json:
-        r["report_url"] = url
-        print(report.to_json(r))
-    elif args.format == "higgsfield" and r.get("mode") != "audio":
-        print(report.to_higgsfield(r, url))
-    else:
-        print(report.to_text(r, url))
+    rows = []
+    for i, path in enumerate(files):
+        r = _run(path, args)
+        url = None if (args.no_report or r.get("mode") == "audio") else _write_report(r, path, args.out_dir)
+        name = os.path.basename(path)
+        if args.json:
+            r["report_url"] = url
+            print(report.to_json(r))
+        elif args.format == "higgsfield" and r.get("mode") != "audio":
+            print(report.to_higgsfield(r, url))
+        elif args.format == "completo":
+            print(report.to_text(r, url))
+        else:
+            print(report.to_resumo(r, url, name))
+        if len(files) > 1 and i < len(files) - 1:
+            print()
+        rows.append((r["overall"], name, {v["area"]: v["label"] for v in r.get("verdicts", [])}))
+    if len(files) > 1 and not args.json:
+        print("\nRANKING")
+        for i, (sc, n, lab) in enumerate(sorted(rows, key=lambda x: -x[0]), 1):
+            weak = [a for a, l in lab.items() if l == "fraco"] or [a for a, l in lab.items() if l == "ok"]
+            print(f"  {i}. {sc:5.1f}  {n}" + (f"  → melhorar: {', '.join(weak)}" if weak else ""))
     return 0
 
 
@@ -184,9 +199,10 @@ def main(argv=None) -> int:
         sp.add_argument("--no-report", action="store_true", help="não gera o HTML")
 
     a = sub.add_parser("analyze", help="analisa um vídeo")
-    a.add_argument("video")
+    a.add_argument("video", nargs="+", help="um ou vários vídeos/áudios")
     common(a)
-    a.add_argument("--format", choices=["texto", "higgsfield"], default="texto", help="'higgsfield' imita o resumo do Virality Predictor")
+    a.add_argument("--format", choices=["resumo", "completo", "higgsfield"], default="resumo",
+                   help="resumo (padrão, curto) | completo (regiões, cenas, tudo) | higgsfield (formato do Virality Predictor)")
     a.add_argument("--json", action="store_true")
     a.set_defaults(fn=cmd_analyze)
 

@@ -8,6 +8,7 @@ import subprocess
 import cv2
 import numpy as np
 
+from . import decode
 from . import frames as F
 
 
@@ -106,13 +107,9 @@ class _Acc:
 
 
 def extract(path: str, meta: dict, sample_fps: float = 8.0, keyframes: bool = True,
-            safe_bottom: float = 0.22, safe_right: float = 0.14) -> dict:
-    cap = cv2.VideoCapture(path)
-    if not cap.isOpened():
-        raise RuntimeError("OpenCV não conseguiu abrir o vídeo.")
-    fps = cap.get(cv2.CAP_PROP_FPS) or meta.get("fps") or 30.0
-    step = max(1, int(round(fps / sample_fps)))
-    dt = step / fps
+            safe_bottom: float = 0.22, safe_right: float = 0.14, on_frame=None) -> dict:
+    fps = sample_fps
+    dt = 1.0 / sample_fps
     duration = meta["duration"] or 0.0
     est_S = max(1, int(math.ceil(duration))) if duration else 600
     acc = _Acc(est_S + 2)
@@ -128,20 +125,13 @@ def extract(path: str, meta: dict, sample_fps: float = 8.0, keyframes: bool = Tr
     black_run = True
     key_times = [0, 1, 2, 3]
     keys: dict[int, bytes] = {}
-    idx = n = 0
+    n = 0
     last_t = 0.0
 
-    while True:
-        if not cap.grab():
-            break
-        if idx % step:
-            idx += 1
-            continue
-        ok, frame = cap.retrieve()
-        idx += 1
-        if not ok or frame is None:
-            continue
-        t = (idx - 1) / fps
+    for frame in decode.frames(path, sample_fps, 432, meta["width"], meta["height"]):
+        if on_frame is not None:
+            on_frame(n, frame)
+        t = n / sample_fps
         last_t = t
         s = int(t)
         small = F.resize_width(frame, 192)
@@ -203,7 +193,6 @@ def extract(path: str, meta: dict, sample_fps: float = 8.0, keyframes: bool = Tr
 
         prev_small, prev_gray, prev_hist = small, gray, hist
         n += 1
-    cap.release()
     if n == 0:
         raise RuntimeError("Nenhum quadro lido.")
 

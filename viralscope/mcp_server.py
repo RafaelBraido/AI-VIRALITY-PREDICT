@@ -4,24 +4,22 @@ Conectar:  claude mcp add viralscope -- viralscope-mcp
 """
 from __future__ import annotations
 
-import contextlib
-import io
 import json
+import subprocess
 import sys
-import tempfile
 
 from . import __version__
-from .cli import main as cli_main
 
 TOOLS = {
     "analyze_video": {
         "description": "Analisa um vídeo curto (MP4/MOV/WEBM) ou áudio (MP3/WAV/M4A) pelo caminho do arquivo. Lê sozinho legendas, "
-                       "texto na tela e áudio. Devolve veredito (gancho, roteiro, imagem, áudio, retenção), cenas e correções.",
+                       "texto na tela e áudio. Devolve resumo curto: veredito por área e o que melhorar, em ordem. Passe todos os vídeos em `paths` de uma vez.",
         "schema": {"type": "object", "properties": {
             "path": {"type": "string", "description": "caminho do arquivo de vídeo ou áudio"},
+            "paths": {"type": "array", "items": {"type": "string"}, "description": "vários arquivos numa chamada só (mais rápido e barato)"},
             "platform": {"type": "string", "enum": ["shorts", "tiktok", "reels"], "default": "shorts"},
             "transcript": {"type": "string", "description": "opcional: caminho de .srt/.vtt/.txt ou o próprio roteiro"}},
-            "required": ["path"]},
+            "required": []},
     },
     "analyze_script": {
         "description": "Analisa um roteiro em texto: gancho, clareza, especificidade, promessa x entrega, muletas, CTA.",
@@ -43,22 +41,20 @@ TOOLS = {
 
 
 def _run(argv: list[str]) -> str:
-    out, err = io.StringIO(), io.StringIO()
-    with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-        try:
-            code = cli_main(argv)
-        except SystemExit as e:
-            code = 1
-            err.write(str(e))
-    text = out.getvalue().strip()
-    if code != 0 or not text:
-        raise RuntimeError((err.getvalue().strip() or text) or "falha sem mensagem")
+    """Cada chamada roda num processo novo: o servidor fica vivo, e processos paralelos (OCR) não podem herdar threads."""
+    p = subprocess.run([sys.executable, "-m", "viralscope", *argv], capture_output=True, text=True)
+    text = p.stdout.strip()
+    if p.returncode != 0 or not text:
+        raise RuntimeError((p.stderr.strip() or text) or "falha sem mensagem")
     return text
 
 
 def call(name: str, a: dict) -> str:
     if name == "analyze_video":
-        argv = ["analyze", a["path"], "--platform", a.get("platform", "shorts")]
+        files = a.get("paths") or ([a["path"]] if a.get("path") else [])
+        if not files:
+            raise RuntimeError("informe path ou paths")
+        argv = ["analyze", *files, "--platform", a.get("platform", "shorts")]
         if a.get("transcript"):
             argv += ["--transcript", a["transcript"]]
         return _run(argv)

@@ -245,7 +245,7 @@ def script_quality(text: str, duration: float | None = None, ocr: bool = False) 
     nums = len(re.findall(r"\d", low))
     spec = float(1.0 - np.exp(-(nums / max(1, len(words)) * 100) / 1.5))
     if spec < 0.25:
-        note(0.5, "roteiro vago: quase nenhum número, prazo ou exemplo concreto", "troque afirmações genéricas por um dado (\"8 meses\", \"R$ 500\", \"3 passos\")")
+        note(0.5, "poucos números/exemplos concretos", "troque afirmações genéricas por um dado (\"8 meses\", \"3 passos\")")
     # promessa x entrega
     head = score_hook_text(" ".join(words[:27]))
     opened = bool(_LOOP_MECH & set(head["signals"]))
@@ -253,7 +253,7 @@ def script_quality(text: str, duration: float | None = None, ocr: bool = False) 
     closes = bool(re.search(_PAYOFF, half))
     closure = 1.0 if (not opened or closes) else 0.35
     if opened and not closes:
-        note(0.6, "o começo abre uma pergunta/promessa e não identifiquei uma resposta clara na segunda metade (heurística por palavras-chave)", "se a resposta existe, deixe-a explícita (\"então…\", \"ou seja…\", \"o resultado foi…\"); se não, o espectador sente que ficou sem payoff")
+        note(0.6, "abre uma pergunta sem resposta clara na 2ª metade (palavras-chave)", "se a resposta existe, deixe-a explícita (\"ou seja…\", \"o resultado foi…\")")
     # repetição e muletas
     rep = _trigram_repeat([w.strip(".,!?").lower() for w in words])
     if rep > 0.12:

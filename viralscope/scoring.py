@@ -119,9 +119,9 @@ def analyze(path: str, transcript: str | None = None, do_transcribe: bool = Fals
     if not video_mod.has_video(path):
         return analyze_audio(path, transcript, do_transcribe, platform)
     meta = video_mod.probe(path)
-    pre = captions_mod.prepare(path, meta["duration"], transcript, ocr)  # OCR já começa em outros processos
-    v = video_mod.extract(path, meta, keyframes=keyframes,
-                          safe_bottom=prof["safe_bottom"], safe_right=prof["safe_right"])
+    pre = captions_mod.prepare(path, meta["duration"], transcript, ocr, meta)  # OCR já começa em outros processos
+    v = video_mod.extract(path, meta, keyframes=keyframes, safe_bottom=prof["safe_bottom"],
+                          safe_right=prof["safe_right"], on_frame=pre["stream"].feed if pre.get("stream") else None)
     S = v["seconds"]
     a = audio_mod.extract(path, S) if meta["has_audio"] else None
 

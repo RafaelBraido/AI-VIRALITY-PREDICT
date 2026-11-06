@@ -72,7 +72,7 @@ def vids(tmp_path_factory):
        "-map", "[v]", "-map", "3:a", "-pix_fmt", "yuv420p", "-shortest", p["slow"])
     ff("-f", "lavfi", "-i", f"testsrc2=size={size}:rate=30:duration=8", "-an", "-pix_fmt", "yuv420p", p["noaudio"])
     ff("-f", "lavfi", "-i", f"testsrc2=size={size}:rate=30:duration=8", *noise,
-       "-vf", "fade=t=in:st=0:d=2:color=black", "-pix_fmt", "yuv420p", "-shortest", p["blackstart"])
+       "-vf", "fade=t=in:st=1:d=1:color=black", "-pix_fmt", "yuv420p", "-shortest", p["blackstart"])
     ff("-f", "lavfi", "-i", "testsrc2=size=640x360:rate=30:duration=8", *noise, "-pix_fmt", "yuv420p", "-shortest", p["landscape"])
     ff("-f", "lavfi", "-i", f"testsrc2=size={size}:rate=30:duration=8", *noise,
        "-vf", "boxblur=12:3", "-pix_fmt", "yuv420p", "-shortest", p["blur"])

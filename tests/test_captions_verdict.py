@@ -97,7 +97,7 @@ def test_audio_only_cli(tmp_path, capsys):
     write_wav(wav, speech_like(6.0, 5.5, 0.4))
     assert main(["analyze", str(wav)]) == 0
     out = capsys.readouterr().out
-    assert out.startswith("VEREDITO") and "Só áudio" in out
+    assert out.startswith("VEREDITO") and "áudio" in out
 
 
 def test_ocr_cues_merge_repeated_text(vids):

@@ -54,6 +54,44 @@ def scenes_lines(r: dict) -> list[str]:
     return out
 
 
+def _short(x: str, n: int) -> str:
+    x = " ".join(x.split())
+    return x if len(x) <= n else x[: n - 1].rstrip() + "…"
+
+
+def to_resumo(r: dict, report_url: str | None = None, name: str = "") -> str:
+    """Saída curta (≈12 linhas): veredito por área + o que melhorar, em ordem. Pensada para gastar poucos tokens."""
+    if r.get("mode") == "audio":
+        head = f"{name or 'áudio'}: nota {r['overall']:.0f}/100 · {r['meta']['duration']:.0f} s"
+    else:
+        head = f"{name or 'vídeo'}: nota {r['overall']:.0f}/100 ({r['verdict']}) · {r['meta']['duration']:.0f} s · gancho 0–3 s {_pct(r['hook'])} · pico {r['peak_hook_pct']}% em {r['peak_hook_second']}s"
+    lines = ["VEREDITO — " + head]
+    order = {"fraco": 0, "ok": 1, "bom": 2, "sem dados": 3}
+    for x in r.get("verdicts", []):
+        why = x["headline"].split(" — ", 1)[1] if " — " in x["headline"] else ""
+        sc = "" if x["score"] is None else f" {x['score'] * 100:.0f}%"
+        lines.append(f"  {_ICON[x['label']]} {x['area']}{sc}" + (f" — {_short(why, 95)}" if why and x["label"] != "bom" else ""))
+    acts, seen = [], set()
+    for x in sorted(r.get("verdicts", []), key=lambda v: order[v["label"]]):
+        for a in x["actions"]:
+            k = a[:30]
+            if k not in seen and x["label"] != "sem dados":
+                seen.add(k)
+                acts.append((x["area"], a))
+    if acts:
+        lines.append("MELHORAR (em ordem):")
+        for i, (area, a) in enumerate(acts[:5], 1):
+            lines.append(f"  {i}. [{area}] {_short(a, 150)}")
+    weak = [s for s in r.get("scenes", []) if s["label"] == "fraca"]
+    if weak:
+        lines.append("Cenas fracas: " + ", ".join(f"{s['t0']:.0f}–{s['t1']:.0f}s" for s in weak[:4]))
+    for w in r.get("warnings", [])[:1]:
+        lines.append(f"Aviso: {_short(w, 160)}")
+    if report_url:
+        lines.append(f"Relatório: {report_url}")
+    return "\n".join(lines)
+
+
 def to_higgsfield(r: dict, report_url: str | None = None) -> str:
     """Mesmo formato do resumo do Virality Predictor da Higgsfield (rótulos em inglês, valores locais)."""
     reg = r["regions"]
