@@ -27,13 +27,12 @@ O objetivo é **rápido e barato**: ~10 s por vídeo, resposta curta, zero chama
 6. **Não refaça testes, não explore o código, não rode pytest**: use a ferramenta como está.
 7. **Não reexplique o que a saída já diz.** Repasse o resumo; se resumir, mantenha: nota, o que está bom, os itens de MELHORAR (o quê, por quê, como) e o link do relatório.
 
-## Gancho: o foco da resposta (obrigatório)
-O gancho é o que mais decide em vídeo curto e longo. Em **todo vídeo**, depois do veredito, faça você mesmo a parte criativa que a ferramenta não faz:
-1. Leia o bloco **GANCHO** da saída: o que a pessoa vê/ouve/lê em 0–3 s, mecanismos usados e faltantes, ponto de pico, frase mais forte do vídeo e o **"Texto do vídeo"**.
-2. **Escreva 3 ganchos novos, concretos, na voz do criador**, usando o tema real do texto e os números dele (nunca placeholders). Varie o mecanismo (pergunta, número/contraste, contrário/mito, resultado primeiro). Máx. ~14 palavras cada.
-3. Para cada um diga em uma linha **por que funciona** e marque o melhor: "Talvez este seja o melhor: … porque …".
-4. Diga também o que mudar no 1º segundo (visual/som) para o gancho aparecer cedo.
-5. Sempre há algo a melhorar no gancho; nunca responda só "o gancho está bom".
+## Gancho: o foco da resposta (obrigatório, mas proporcional)
+O gancho é o que mais decide. Leia o bloco **GANCHO** (nota, vê/ouve/lê, mecanismos, "Texto do vídeo") e **ajuste a resposta à qualidade dele**:
+- **Gancho bom (nota ≥ ~75%)**: diga que está bom, em 1 linha, e por quê. Não invente problema. Só cite um ajuste se for real e medido.
+- **Gancho mais ou menos (~50–74%)**: diga "tá mais ou menos", aponte o que falta (o quê/por quê/como) e dê **1 gancho alternativo** concreto: "Talvez este seja melhor: … porque …".
+- **Gancho ruim (< ~50%)**: diga com clareza que **precisa melhorar essa parte**, explique o motivo e escreva **3 ganchos novos**, concretos, na voz do criador, com o tema e os números reais do texto (nunca placeholders, máx. ~14 palavras), marcando o melhor: "Talvez este seja o melhor: … porque …". Diga também o que mudar no 1º segundo (imagem/som).
+**Orçamento: ~500 tokens por vídeo no total.** Seja direto; sem repetir o que a ferramenta já mostrou.
 Como um gancho funciona: em ≤ 3 s precisa de **promessa específica + algo incompleto** (pergunta, contraste, número, resultado antes da explicação). Genérico ("hoje vou falar de…") perde para o rolar do dedo.
 
 ## Como responder
