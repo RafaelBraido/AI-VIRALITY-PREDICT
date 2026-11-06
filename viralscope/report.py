@@ -96,9 +96,9 @@ def to_resumo(r: dict, report_url: str | None = None, name: str = "") -> str:
                 acts.append((x["area"], a))
     if acts:
         lines.append("MELHORAR (em ordem):")
-        for i, (area, a) in enumerate(acts[:5], 1):
-            lines.append(f"  {i}. [{area}] {_short(a, 150)}")
-    if not acts:  # tudo "bom": ainda assim aponta o que dá para subir
+        for i, (area, a) in enumerate(acts[:7], 1):
+            lines.append(f"  {i}. [{area}] {_short(a, 330)}")
+    if False:
         lows = sorted((v, k) for k, v in r["components"].items() if v < 0.9 and k in _TIPS)[:3]
         if lows:
             lines.append("PODE MELHORAR (mais baixos):")

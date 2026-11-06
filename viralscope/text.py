@@ -142,7 +142,7 @@ def score_hook_text(text: str) -> dict:
         notes.append("Pedido de inscrição/like logo na abertura; deixe para o fim.")
     if not hits:
         notes.append("Nenhum mecanismo de gancho detectado (pergunta, número, contrário, 'você', curiosidade, dor, prova).")
-    return {"score": float(min(1.0, max(0.0, score))), "signals": hits, "words": words, "notes": notes}
+    return {"score": float(min(1.0, max(0.0, score))), "signals": hits, "words": words, "notes": notes, "text": text.strip()}
 
 
 def rank_hooks(hooks: list[str]) -> list[dict]:
@@ -218,6 +218,19 @@ def count_words(text: str) -> int:
     return len(split_glued(text).split())
 
 
+_WHY = [
+    ("frase(s) com mais de", "frase longa é difícil de acompanhar ouvindo; o espectador perde o fio e rola"),
+    ("poucos números", "dado concreto prende e dá credibilidade; afirmação genérica passa batida"),
+    ("abre uma pergunta", "pergunta aberta sem resposta frustra e derruba a retenção"),
+    ("repetidos", "repetir sem avançar parece enrolação"),
+    ("muletas", "muleta quebra o ritmo e atrasa a informação"),
+    ("logo no começo", "pedir inscrição antes de entregar valor afasta"),
+    ("sem fecho", "o final decide se a pessoa comenta, compartilha ou reassiste"),
+    ("longo demais", "texto maior que o tempo obriga a falar corrido ou estoura a duração"),
+    ("pouco texto", "muito tempo sem fala faz a atenção cair"),
+]
+
+
 def script_quality(text: str, duration: float | None = None, ocr: bool = False) -> dict:
     """Nota 0..1 do ROTEIRO (sem o gancho, que é julgado à parte) + achados acionáveis em português.
 
@@ -234,7 +247,8 @@ def script_quality(text: str, duration: float | None = None, ocr: bool = False) 
     notes: list[dict] = []
 
     def note(prio, msg, action):
-        notes.append({"priority": prio, "problem": msg, "action": action})
+        why = next((w for k, w in _WHY if k in msg), "")
+        notes.append({"priority": prio, "problem": msg, "action": action, "why": why})
 
     # clareza
     long_n = sum(1 for n in lens if n > 22)

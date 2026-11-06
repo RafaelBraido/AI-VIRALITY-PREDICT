@@ -3,12 +3,23 @@ from __future__ import annotations
 
 import numpy as np
 
+_PART_WHY = {
+    "dyn": "nos 3 primeiros segundos a pessoa decide ficar ou rolar",
+    "frame": "o primeiro quadro é o que aparece antes de qualquer som",
+    "audio": "silêncio no início parece vídeo quebrado",
+    "text": "a frase de abertura é a promessa que segura a pessoa",
+}
 _PART_TXT = {
     "dyn": ("movimento e cortes nos 3 primeiros segundos", "abra com corte, movimento ou zoom já no segundo 0"),
     "frame": ("primeiro quadro (nitidez, luz, sujeito claro)", "escolha um primeiro quadro nítido, bem iluminado e com um sujeito dominante"),
     "audio": ("entrada do som", "comece com voz ou som no primeiro segundo; nada de silêncio inicial"),
     "text": ("frase de abertura", "reescreva a abertura com um mecanismo claro: pergunta, número, contrário ou promessa específica"),
 }
+
+
+def _cut(x: str, n: int) -> str:
+    x = " ".join(x.split())
+    return x if len(x) <= n else x[: n - 1] + "…"
 
 
 def rate(x, hi=0.60, lo=0.40) -> str:
@@ -51,11 +62,15 @@ def build(res: dict, v: dict, a: dict | None, hook_parts: dict, script: dict | N
     if lab != "bom" or serious("gancho"):
         for k, x in weak[:2]:
             if x < 0.5:
-                actions.append(_PART_TXT[k][1] + f" (hoje: {x * 100:.0f}%)")
+                actions.append(f"{_PART_TXT[k][0].capitalize()} está em {x * 100:.0f}%. Por quê: {_PART_WHY[k]}. Como: {_PART_TXT[k][1]}")
         why = f"o que mais pesa contra: {_PART_TXT[weak[0][0]][0]}"
     ht = res.get("hook_text")
     if ht and ht["notes"]:
-        actions += ht["notes"][:2]
+        quote = f' Abertura atual (lida na tela/legenda): «{_cut(ht.get("text", ""), 80)}».' if ht.get("text") else ""
+        actions += [f"{n}{quote} Por quê: {_PART_WHY['text']}. Como: {_PART_TXT['text'][1]}" for n in ht["notes"][:1]]
+    if not actions and weak[0][1] < 0.8:  # nota boa, mas dá para subir: aponta a parte mais baixa
+        k, x = weak[0]
+        actions.append(f"Pode subir: {_PART_TXT[k][0]} está em {x * 100:.0f}%. Por quê: {_PART_WHY[k]}. Como: {_PART_TXT[k][1]}")
     actions += [f["text"] for f in res["fixes"] if f["area"] == "gancho" and f["priority"] >= 0.85 and f["text"] not in actions][:2]
     out.append({"area": "gancho", "label": lab, "score": hook, "headline": _headline("gancho", lab, why, bool(actions)), "actions": actions[:4]})
 
@@ -63,7 +78,7 @@ def build(res: dict, v: dict, a: dict | None, hook_parts: dict, script: dict | N
     if script and script.get("score") is not None:
         sc = script["score"]
         lab = _cap(rate(sc, 0.65, 0.45), any(n["priority"] >= 0.8 for n in script["notes"]))
-        acts = [f"{n['problem']}: {n['action']}" for n in script["notes"][:3]]
+        acts = [f"{n['problem']}. Por quê: {n.get('why') or 'afeta a retenção'}. Como: {n['action']}" for n in script["notes"][:3]]
         proxy = " (estimado só pelo áudio; envie o texto para a análise real)" if script.get("proxy") else ""
         why = "" if lab == "bom" else (script["notes"][0]["problem"] if script["notes"] else "")
         out.append({"area": "roteiro", "label": lab, "score": sc, "proxy": bool(script.get("proxy")),
@@ -85,6 +100,21 @@ def build(res: dict, v: dict, a: dict | None, hook_parts: dict, script: dict | N
         acts.append("reduza a exposição; está estourada")
     if fo < 0.3:
         acts.append("deixe um sujeito dominar o quadro")
+    if not acts and img < 0.9:
+        m = {"nitidez": float(np.mean(v["sharpness"])), "exposição": float(np.mean(v["exposure"])), "contraste": float(np.mean(v["contrast"])),
+             "cor": float(np.mean(v["colorfulness"])), "ponto de interesse": float(np.mean(v["focus"]))}
+        k = min(m, key=m.get)
+        how = {"nitidez": "aumente a resolução/bitrate de exportação e mantenha o sujeito em foco",
+               "exposição": "ajuste a luz para a média ficar nem escura nem estourada",
+               "contraste": "aumente o contraste entre o sujeito e o fundo",
+               "cor": "use uma cor de acento no sujeito para destacar do fundo",
+               "ponto de interesse": "deixe um sujeito dominar o quadro e reduza elementos concorrentes"}[k]
+        why = {"nitidez": "imagem mole parece de baixa qualidade e o polegar passa",
+               "exposição": "cena média muito escura reduz o destaque do personagem (se o fundo escuro é estilo seu, mantenha e clareie só o personagem/texto)",
+               "contraste": "pouco contraste faz o sujeito se misturar ao fundo",
+               "cor": "cores apagadas chamam menos atenção no feed",
+               "ponto de interesse": "sem sujeito claro o olhar não tem onde pousar"}[k]
+        acts.append(f"Pode subir: {k} está em {m[k] * 100:.0f}% (a mais baixa da imagem). Por quê: {why}. Como: {how}")
     out.append({"area": "imagem", "label": lab, "score": img,
                 "headline": _headline("imagem", lab, "" if lab == "bom" else (acts[0] if acts else ""), bool(acts)), "actions": acts[:3]})
 
@@ -93,6 +123,8 @@ def build(res: dict, v: dict, a: dict | None, hook_parts: dict, script: dict | N
         au = 0.5 * comps["audio_tech"] + 0.5 * float(res["regions"]["auditory"] or 0)
         lab = rate(au, 0.60, 0.40)
         acts = [f["text"] for f in res["fixes"] if f["area"] == "áudio"][:3]
+        if not acts and au < 0.95:
+            acts.append(f"Pode subir: ataque/energia do áudio em {float(res['regions']['auditory'] or 0) * 100:.0f}%. Por quê: sons de impacto nos cortes mantêm a atenção. Como: adicione efeito curto (whoosh/pop) nas trocas de cena e varie a música")
         out.append({"area": "áudio", "label": lab, "score": au,
                     "headline": _headline("áudio", lab, "" if lab == "bom" or not acts else acts[0], bool(acts)), "actions": acts})
     else:
@@ -102,6 +134,9 @@ def build(res: dict, v: dict, a: dict | None, hook_parts: dict, script: dict | N
     ret = 0.6 * comps["sustain"] + 0.4 * comps["no_drift"]
     lab = rate(ret, 0.70, 0.45)
     acts = [f["text"] for f in res["fixes"] if f["area"] == "retenção"][:3]
+    att = res["regions"].get("attention")
+    if not acts and att is not None and att < 0.5:
+        acts.append(f"Pode subir: atenção (quebras de padrão) em {att * 100:.0f}%. Por quê: sem novidade a cada poucos segundos a atenção esfria. Como: adicione um corte, zoom, efeito sonoro ou mudança de cenário a cada ~4–5 s")
     weak_scenes = [s for s in res.get("scenes", []) if s["label"] == "fraca"]
     if weak_scenes and not acts:
         s0 = weak_scenes[0]
@@ -174,7 +209,7 @@ def build_audio(res: dict, a: dict) -> list[dict]:
     script = res.get("script")
     if script and script.get("score") is not None:
         lab = _cap(rate(script["score"], 0.65, 0.45), any(n["priority"] >= 0.8 for n in script["notes"]))
-        acts = [f"{n['problem']}: {n['action']}" for n in script["notes"][:3]]
+        acts = [f"{n['problem']}. Por quê: {n.get('why') or 'afeta a retenção'}. Como: {n['action']}" for n in script["notes"][:3]]
         proxy = " (estimado só pelo áudio; envie o texto para a análise real)" if script.get("proxy") else ""
         out.append({"area": "roteiro", "label": lab, "score": script["score"], "proxy": bool(script.get("proxy")),
                     "headline": _headline("roteiro", lab, "", bool(acts)) + proxy, "actions": acts})
