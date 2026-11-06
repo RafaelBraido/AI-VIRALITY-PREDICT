@@ -59,6 +59,22 @@ def _short(x: str, n: int) -> str:
     return x if len(x) <= n else x[: n - 1].rstrip() + "…"
 
 
+_TIPS = {
+    "hook": "teste outro gancho: abra com pergunta, número ou contraste e com movimento/corte no 1º segundo",
+    "body": "aumente a variação no meio: corte, zoom ou mudança de plano a cada 3–5 s",
+    "sustain": "encurte as partes em que a energia cai",
+    "no_drift": "elimine trechos parados sem fala ou sem som",
+    "image": "melhore nitidez, luz e um sujeito dominante no quadro",
+    "format": "ajuste duração/resolução ao formato da plataforma",
+    "loop": "feche o vídeo repetindo o 1º quadro ou som para incentivar rever",
+    "captions": "adicione ou suba as legendas (muita gente assiste sem som)",
+    "audio_tech": "normalize o áudio perto de -14 LUFS e evite estourar",
+    "script": "enxugue o texto, dê um dado concreto e deixe a resposta explícita",
+}
+_CN = {"hook": "gancho", "body": "corpo", "sustain": "sustentação", "no_drift": "ausência de trechos mortos", "image": "imagem",
+       "format": "formato", "loop": "loop", "captions": "legendas", "audio_tech": "áudio técnico", "script": "roteiro"}
+
+
 def to_resumo(r: dict, report_url: str | None = None, name: str = "") -> str:
     """Saída curta (≈12 linhas): veredito por área + o que melhorar, em ordem. Pensada para gastar poucos tokens."""
     if r.get("mode") == "audio":
@@ -82,6 +98,12 @@ def to_resumo(r: dict, report_url: str | None = None, name: str = "") -> str:
         lines.append("MELHORAR (em ordem):")
         for i, (area, a) in enumerate(acts[:5], 1):
             lines.append(f"  {i}. [{area}] {_short(a, 150)}")
+    if not acts:  # tudo "bom": ainda assim aponta o que dá para subir
+        lows = sorted((v, k) for k, v in r["components"].items() if v < 0.9 and k in _TIPS)[:3]
+        if lows:
+            lines.append("PODE MELHORAR (mais baixos):")
+            for i, (v, k) in enumerate(lows, 1):
+                lines.append(f"  {i}. [{_CN[k]} {v * 100:.0f}%] {_TIPS[k]}")
     weak = [s for s in r.get("scenes", []) if s["label"] == "fraca"]
     if weak:
         lines.append("Cenas fracas: " + ", ".join(f"{s['t0']:.0f}–{s['t1']:.0f}s" for s in weak[:4]))
@@ -89,7 +111,9 @@ def to_resumo(r: dict, report_url: str | None = None, name: str = "") -> str:
         lines.append(f"Aviso: {_short(w, 160)}")
     if report_url:
         lines.append(f"Relatório: {report_url}")
-    return "\n".join(lines)
+    body = "\n".join(lines)
+    toks = int(len(body) / 3.5) + 12
+    return body + f"\nCusto: R$ 0 (roda local, sem API) · tempo {r.get('elapsed_s', 0):.0f} s · esta resposta ≈ {toks} tokens"
 
 
 def to_higgsfield(r: dict, report_url: str | None = None) -> str:

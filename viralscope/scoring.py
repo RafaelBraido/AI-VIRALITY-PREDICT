@@ -13,6 +13,8 @@ Virality Predictor da Higgsfield, mas aqui são proxies de sinais do arquivo. N�
 """
 from __future__ import annotations
 
+import time
+
 import numpy as np
 
 from . import audio as audio_mod
@@ -116,8 +118,11 @@ def analyze(path: str, transcript: str | None = None, do_transcribe: bool = Fals
             weights: dict | None = None, platform: str = "shorts", keyframes: bool = True, ocr: bool = True) -> dict:
     W = {**DEFAULT_WEIGHTS, **(weights or {})}
     prof = profiles.get(platform)
+    t0 = time.time()
     if not video_mod.has_video(path):
-        return analyze_audio(path, transcript, do_transcribe, platform)
+        r = analyze_audio(path, transcript, do_transcribe, platform)
+        r["elapsed_s"] = round(time.time() - t0, 1)
+        return r
     meta = video_mod.probe(path)
     pre = captions_mod.prepare(path, meta["duration"], transcript, ocr, meta)  # OCR já começa em outros processos
     v = video_mod.extract(path, meta, keyframes=keyframes, safe_bottom=prof["safe_bottom"],
@@ -134,6 +139,7 @@ def analyze(path: str, transcript: str | None = None, do_transcribe: bool = Fals
     early = [g for t_, g in (extra or {}).get("graphics", []) if t_ < 3.0]  # banners/títulos que já aparecem no gancho
     title = " ".join((extra or {}).get("fixed", []) + early) if extra else None
     res = build(v, a, meta, cues, wps, W, prof, title=title or None, ocr_text=(source == "texto lido na tela (OCR)"))
+    res["elapsed_s"] = round(time.time() - t0, 1)
     res["transcript"] = _transcript_info(cues, source)
     res["on_screen"] = extra or {}
     if res["language_source"] == "transcrição" and source and source != "texto enviado por você":
