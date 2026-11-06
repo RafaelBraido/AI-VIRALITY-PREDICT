@@ -13,6 +13,7 @@ Projeto Python (`viralscope/`) que analisa vídeos curtos com sinais medidos no 
 `calibrate.py` + `history.py` (aprendizado do canal) · `profiles.py` (priors por plataforma).
 
 ## Regras
+- **Rápido e econômico**: ~10 s por vídeo e saída curta por padrão. Não adicione etapa lenta sem medir (use `time`); mantenha o resumo em poucas linhas; toda análise precisa listar o que melhorar com o quê/por quê/como.
 - Todo sinal novo precisa ser medido de verdade e entrar na tabela `measured` com tipo medido/proxy/heurística. Nada de valor fixo exibido como medição.
 - Toda mudança de pontuação precisa de teste sintético. Não escreva R², "treinado com milhares de vídeos" ou "prevê views/atividade cerebral" sem dado real que sustente.
 - Não chamar a API da Higgsfield, não usar login deles, não copiar código GPL (o `bsisduck/video-analyzer-skill` é GPL-3.0).

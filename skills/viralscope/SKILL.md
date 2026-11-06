@@ -17,13 +17,19 @@ Analisador local (sem login, sem API paga). Código em `viralscope/`; CLI `viral
 - Thumbnail: `viralscope image IMG` · Ganchos: `viralscope hooks ARQ` · Roteiro: `viralscope script ARQ`
 - Aprender: depois que o vídeo tiver métrica real (retenção %, views em 7 dias), `viralscope learn VIDEO --target N`. Em lote: `viralscope learn --import arq.csv` (video,target). Estado: `viralscope learn --status`.
 
-## Economia (obrigatório)
-- **Uma chamada para todos os vídeos.** Não rode um por vez, não repita a análise, não leia o HTML nem o JSON: o resumo já tem o que importa.
-- Responda em poucas linhas: nota, o que está bom, o que melhorar (máx. 5 itens) e o link do relatório.
+## Velocidade e economia de tokens (obrigatório)
+O objetivo é **rápido e barato**: ~10 s por vídeo, resposta curta, zero chamadas à toa. Custo da análise: R$ 0 (roda local).
+1. **Uma chamada para todos os vídeos**: `viralscope analyze a.mp4 b.mp4 c.mp4` (ou MCP `analyze_video` com `paths`). Nunca um por vez, nunca repetir a mesma análise.
+2. **Não leia nada além da saída do comando.** Não abra o HTML, o JSON, o SRT nem os arquivos de vídeo; o resumo (~200–500 tokens por vídeo) já tem veredito, o que melhorar e o ranking.
+3. **Não use `--format completo`, `--json` nem `--format higgsfield`** a menos que o usuário peça regiões, cenas ou o formato Higgsfield.
+4. **Não instale nem configure nada** (Whisper, OCR, etc.): o texto é achado sozinho. Só rode `pip install` se `viralscope --version` falhar.
+5. **Use `--no-ocr`** só se o usuário quiser a resposta ainda mais rápida (~5 s); avise que o roteiro/gancho falado fica estimado.
+6. **Não refaça testes, não explore o código, não rode pytest**: use a ferramenta como está.
+7. **Não reexplique o que a saída já diz.** Repasse o resumo; se resumir, mantenha: nota, o que está bom, os itens de MELHORAR (o quê, por quê, como) e o link do relatório.
 
 ## Como responder
 1. Rode `analyze` (use `--json` se precisar dos números). Comece pelo **VEREDITO** em linguagem direta (ex.: "o gancho está bom, mas o roteiro precisa melhorar porque…"), diga de onde veio o texto lido, depois nota geral, pico do gancho, sustentação, regiões, cenas fracas e o link do relatório HTML.
-2. Liste as 3-5 correções de maior prioridade **com o intervalo de segundos** e o que mudar.
+2. Para **cada vídeo**, diga o que pode melhorar, com **o quê, por quê e como** (a saída já traz isso por área: gancho, roteiro, imagem, áudio, retenção). Inclua o intervalo de segundos quando houver.
 3. Se houver probabilidade calibrada, cite junto a AUC e o n. Se não houver, diga que ainda faltam vídeos com métrica real (mínimo 20).
 4. Ofereça registrar a métrica real do vídeo depois de alguns dias (`learn`), porque é assim que a ferramenta melhora no canal.
 
