@@ -4,19 +4,20 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "viralscope"
-version = "0.3.0"
+version = "0.4.0"
 description = "Analisador local (sem login) de gancho, imagem, áudio e retenção para Shorts, Reels e TikTok"
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
-dependencies = ["numpy", "opencv-python-headless>=4.9,<5"]
+dependencies = ["numpy", "opencv-python-headless>=4.9,<5", "rapidocr-onnxruntime"]
 
 [project.optional-dependencies]
-transcribe = ["faster-whisper"]
+transcribe = ["faster-whisper"]  # opcional: só para transcrever a fala quando o vídeo não tem texto nenhum
 test = ["pytest"]
 
 [project.scripts]
 viralscope = "viralscope.cli:main"
+viralscope-mcp = "viralscope.mcp_server:main"
 
 [tool.setuptools]
 packages = ["viralscope"]

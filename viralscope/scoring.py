@@ -16,8 +16,10 @@ from __future__ import annotations
 import numpy as np
 
 from . import audio as audio_mod
+from . import captions as captions_mod
 from . import profiles
 from . import text as text_mod
+from . import verdict as verdict_mod
 from . import video as video_mod
 from .frames import sat
 
@@ -27,10 +29,10 @@ DEFAULT_WEIGHTS = {
     # canais -> engajamento por segundo
     "visual": 0.30, "auditory": 0.25, "language": 0.15, "attention": 0.30,
     # nota geral
-    "hook": 0.30, "body": 0.20, "sustain": 0.12, "no_drift": 0.10, "image": 0.08,
-    "format": 0.07, "loop": 0.05, "captions": 0.04, "audio_tech": 0.04,
+    "hook": 0.28, "body": 0.17, "sustain": 0.10, "no_drift": 0.10, "image": 0.08,
+    "format": 0.06, "loop": 0.04, "captions": 0.03, "audio_tech": 0.04, "script": 0.10,
 }
-OVERALL_KEYS = ["hook", "body", "sustain", "no_drift", "image", "format", "loop", "captions", "audio_tech"]
+OVERALL_KEYS = ["hook", "body", "sustain", "no_drift", "image", "format", "loop", "captions", "audio_tech", "script"]
 
 
 # ------------------------------------------------------------------ utilidades
@@ -111,22 +113,109 @@ def format_score(meta: dict, prof: dict) -> tuple[float, list[str]]:
 
 # ------------------------------------------------------------------- análise
 def analyze(path: str, transcript: str | None = None, do_transcribe: bool = False,
-            weights: dict | None = None, platform: str = "shorts", keyframes: bool = True) -> dict:
+            weights: dict | None = None, platform: str = "shorts", keyframes: bool = True, ocr: bool = True) -> dict:
     W = {**DEFAULT_WEIGHTS, **(weights or {})}
     prof = profiles.get(platform)
+    if not video_mod.has_video(path):
+        return analyze_audio(path, transcript, do_transcribe, platform)
     meta = video_mod.probe(path)
     v = video_mod.extract(path, meta, keyframes=keyframes,
                           safe_bottom=prof["safe_bottom"], safe_right=prof["safe_right"])
     S = v["seconds"]
     a = audio_mod.extract(path, S) if meta["has_audio"] else None
 
-    cues = None
-    if transcript:
-        cues = text_mod.parse(transcript)
-    elif do_transcribe:
-        cues = text_mod.transcribe(path)
-    wps = text_mod.words_per_second(cues, S) if cues else None
-    return build(v, a, meta, cues, wps, W, prof)
+    cues, source = captions_mod.find(path, meta["duration"], transcript, do_transcribe, ocr)
+    # tempo de exibição de legenda não é tempo de fala: só texto "de fala" vira palavras/s
+    wps = text_mod.words_per_second(cues, S) if (cues and source != "texto lido na tela (OCR)") else None
+    res = build(v, a, meta, cues, wps, W, prof)
+    res["transcript"] = _transcript_info(cues, source)
+    res["warnings"] = _warnings(cues, a)
+    return res
+
+
+def _transcript_info(cues, source):
+    if not cues:
+        return None
+    full = " ".join(t for _, _, t in cues)
+    return {"source": source, "n_cues": len(cues), "words": len(full.split()),
+            "text": full if len(full) <= 600 else full[:600] + "…"}
+
+
+def _warnings(cues, a) -> list[str]:
+    if not cues and a is not None and a["speech_seconds"] >= 3:
+        return ["Não encontrei legenda nem texto na tela, então o roteiro foi estimado só pelo áudio. "
+                "Para a análise real, passe --transcript arquivo.srt/.txt (ou legende o vídeo)."]
+    return []
+
+
+def analyze_audio(path: str, transcript: str | None = None, do_transcribe: bool = False,
+                  platform: str = "shorts") -> dict:
+    """MP3/WAV/M4A (sem imagem): gancho de voz, roteiro e áudio."""
+    prof = profiles.get(platform)
+    dur = video_mod.audio_duration(path)
+    S = max(1, int(np.ceil(dur)))
+    a = audio_mod.extract(path, S)
+    if a is None:
+        raise RuntimeError("Não consegui ler o áudio (arquivo vazio ou formato não suportado).")
+    cues = text_mod.parse(transcript) if transcript else (text_mod.transcribe(path) if do_transcribe else None)
+    n = min(3, S)
+    loud01 = np.clip((a["loud_db"] + 45.0) / 27.0, 0, 1)
+    start = 0.0 if a["first_sound_s"] is None else float(1.0 - np.clip((a["first_sound_s"] - 0.3) / 1.7, 0, 1))
+    energy = float(np.mean(0.6 * loud01[:n] + 0.4 * np.minimum(1.0, a["onsets"][:n] / 2.0)))
+    hparts = {"audio": (0.35, start), "energy": (0.25, energy)}
+    hook_info = None
+    if cues:
+        hook_info = text_mod.score_hook_text(text_mod.opening_text(cues))
+        hparts["text"] = (0.40, hook_info["score"])
+    hook = float(sum(w * x for w, x in hparts.values()) / sum(w for w, _ in hparts.values()))
+    script = None
+    if cues:
+        script = text_mod.script_quality(" ".join(t for _, _, t in cues), dur)
+    if (script is None or script.get("score") is None) and a["speech_seconds"] >= 3:
+        script = text_mod.script_from_audio(a, S)
+    ebu = a.get("ebu")
+    lufs_score = 0.5 if not ebu else float(np.clip(1.0 - max(0.0, prof["target_lufs"] - ebu["lufs"]) / 12.0
+                                                  - max(0.0, ebu["lufs"] - (prof["target_lufs"] + 6)) / 12.0, 0, 1))
+    audio_tech = float(np.clip(lufs_score - 4.0 * a["clip_ratio"], 0, 1))
+    auditory = np.clip(0.45 * loud01 + 0.30 * np.minimum(1.0, a["onsets"] / 2.0)
+                       + 0.25 * np.maximum(a["voice_ratio"], sat(a["flux"], 0.5)) * (~a["silent"]), 0, 1)
+    sm = _smooth(auditory)
+    sustain = float(np.mean(np.clip(sm[n:] / 0.45, 0, 1))) if S > n else float(np.mean(np.clip(sm / 0.45, 0, 1)))
+    comps = {"hook": hook, "audio_tech": audio_tech, "sustain": sustain}
+    if script and script.get("score") is not None:
+        comps["script"] = script["score"]
+    wt = {"hook": 0.35, "script": 0.35, "audio_tech": 0.15, "sustain": 0.15}
+    overall = float(np.clip(100 * sum(wt[k] * comps[k] for k in comps) / sum(wt[k] for k in comps), 0, 100))
+    fixes = []
+    if a["first_sound_s"] is None or a["first_sound_s"] > 0.8:
+        fixes.append({"priority": 0.85, "area": "áudio", "text": "Silêncio no início: comece falando já no primeiro segundo.", "time": [0, 1]})
+    if a["first_speech_s"] is not None and a["first_speech_s"] > 1.5:
+        fixes.append({"priority": 0.6, "area": "áudio", "text": f"A voz só entra em {a['first_speech_s']:.1f} s; antecipe a primeira frase.", "time": [0, 2]})
+    if ebu and ebu["lufs"] < prof["target_lufs"] - 5:
+        fixes.append({"priority": 0.55, "area": "áudio", "text": f"Áudio baixo ({ebu['lufs']:.1f} LUFS); ideal perto de {prof['target_lufs']:.0f} LUFS.", "time": None})
+    if a["clip_ratio"] > 0.005:
+        fixes.append({"priority": 0.5, "area": "áudio", "text": "Áudio estourando (clipping); abaixe o ganho ou use limitador.", "time": None})
+    if a["silence_ratio"] > 0.35:
+        fixes.append({"priority": 0.45, "area": "áudio", "text": f"{a['silence_ratio'] * 100:.0f}% do áudio é silêncio.", "time": None})
+    if hook_info:
+        fixes += [{"priority": 0.65, "area": "gancho", "text": t, "time": [0, 3]} for t in hook_info["notes"]]
+    fixes.sort(key=lambda f: -f["priority"])
+    res = {"schema": "viralscope/audio-1", "mode": "audio", "overall": round(overall, 1), "verdict": label(overall),
+           "hook": round(hook, 3), "components": {k: round(x, 4) for k, x in comps.items()},
+           "hook_parts": {k: round(float(x), 3) for k, (_, x) in hparts.items()},
+           "hook_text": hook_info, "script": script, "fixes": fixes,
+           "timeline": {"auditory": auditory.round(3).tolist(), "loud_db": a["loud_db"].round(1).tolist()},
+           "meta": {"duration": dur, "platform": prof["nome"], "has_transcript": bool(cues)},
+           "transcript": _transcript_info(cues, "texto enviado por você" if transcript else "Whisper"),
+           "warnings": _warnings(cues, a),
+           "measured": [{"name": n_, "value": val, "unit": u, "kind": k_} for n_, val, u, k_ in [
+               ("Primeiro som", None if a["first_sound_s"] is None else round(a["first_sound_s"], 2), "s", "medido"),
+               ("Ritmo de fala (envelope de voz)", round(a["speech_rate_syl_s"], 1), "sílabas/s", "proxy"),
+               ("Silêncio", f"{a['silence_ratio'] * 100:.0f}%", "", "medido"),
+               ("Loudness integrada", None if not ebu else ebu["lufs"], "LUFS", "medido")]]}
+    res["verdicts"] = verdict_mod.build_audio(res, a)
+    res["summary"] = verdict_mod.summary(res["verdicts"])
+    return res
 
 
 def build(v: dict, a: dict | None, meta: dict, cues, wps, W: dict, prof: dict) -> dict:
@@ -230,9 +319,17 @@ def build(v: dict, a: dict | None, meta: dict, cues, wps, W: dict, prof: dict) -
     if a is not None:
         loop = 0.7 * loop + 0.3 * a["loop_audio"]
 
+    script = None
+    if cues:
+        script = text_mod.script_quality(" ".join(t for _, _, t in cues), meta["duration"])
+    if (script is None or script.get("score") is None) and a is not None and a["speech_seconds"] >= 3:
+        script = text_mod.script_from_audio(a, S)
     comps = {"hook": hook, "body": body, "sustain": sustain, "no_drift": 1 - drift, "image": image_q,
              "format": fmt, "loop": loop, "captions": captions, "audio_tech": audio_tech}
-    overall = 100.0 * sum(W[k] * comps[k] for k in OVERALL_KEYS) / sum(W[k] for k in OVERALL_KEYS)
+    if script and script.get("score") is not None:
+        comps["script"] = script["score"]
+    keys = [k for k in OVERALL_KEYS if k in comps]
+    overall = 100.0 * sum(W[k] * comps[k] for k in keys) / sum(W[k] for k in keys)
     overall = float(np.clip(overall, 0, 100))
 
     regions = {"visual": float(np.mean(visual)), "auditory": float(np.mean(auditory)) if a is not None else None,
@@ -249,6 +346,8 @@ def build(v: dict, a: dict | None, meta: dict, cues, wps, W: dict, prof: dict) -
         "components": {k: round(x, 4) for k, x in comps.items()},
         "language_source": language_src,
         "hook_text": hook_info,
+        "hook_parts": {k: round(float(x), 3) for k, (_, x) in parts.items()},
+        "script": script,
         "drift_runs": [(int(s0), int(b)) for s0, b in drift_runs],
         "timeline": {"engagement": engagement.round(3).tolist(), "visual": visual.round(3).tolist(),
                      "auditory": auditory.round(3).tolist(), "attention": attention.round(3).tolist(),
@@ -260,8 +359,9 @@ def build(v: dict, a: dict | None, meta: dict, cues, wps, W: dict, prof: dict) -
         "keyframes": v["keyframes"],
     }
     res["measured"] = _measured(v, a, ebu, meta, text_sec)
+    res["scenes"] = verdict_mod.scenes(v, a, engagement, S)
     res["fixes"] = _fixes(v, a, ebu, meta, prof, comps, res, cues, wps, hook_info, fmt_notes, audio_start, first_sound)
-    return res
+    return finish(res, v, a)
 
 
 def _measured(v, a, ebu, meta, text_sec) -> list[dict]:
@@ -360,3 +460,9 @@ def _fixes(v, a, ebu, meta, prof, comps, res, cues, wps, hook_info, fmt_notes, a
         add(0.2, "retenção", "O final não conversa com o começo; um fecho que reaproveita o primeiro quadro/som incentiva rever (loop).")
     out.sort(key=lambda f: -f["priority"])
     return out
+
+
+def finish(res: dict, v: dict, a: dict | None) -> dict:
+    res["verdicts"] = verdict_mod.build(res, v, a, res["hook_parts"], res["script"])
+    res["summary"] = verdict_mod.summary(res["verdicts"])
+    return res

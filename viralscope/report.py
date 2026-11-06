@@ -30,6 +30,30 @@ def risk_line(r: dict, en: bool = False) -> str | None:
     return None
 
 
+_ICON = {"bom": "[OK]", "ok": "[~~]", "fraco": "[!!]", "sem dados": "[--]"}
+
+
+def veredito_lines(r: dict) -> list[str]:
+    """Bloco em linguagem direta: o que está bom, o que melhorar e o que fazer primeiro."""
+    out = ["VEREDITO"]
+    for x in r.get("verdicts", []):
+        out.append(f"  {_ICON[x['label']]} {x['headline']}")
+        for a in x["actions"][:3]:
+            out.append(f"        → {a}")
+    weak = [x for x in r.get("verdicts", []) if x["label"] == "fraco"]
+    if weak:
+        out.append(f"  Comece por: {weak[0]['area']}.")
+    return out
+
+
+def scenes_lines(r: dict) -> list[str]:
+    out = ["Cenas (cortes ou blocos de 5 s):"]
+    for s in r.get("scenes", []):
+        out.append(f"  {s['t0']:5.1f}–{s['t1']:5.1f} s  {s['label']:5s} {s['engagement'] * 100:3.0f}%"
+                   + (f"  ({s['note']})" if s["note"] else ""))
+    return out
+
+
 def to_higgsfield(r: dict, report_url: str | None = None) -> str:
     """Mesmo formato do resumo do Virality Predictor da Higgsfield (rótulos em inglês, valores locais)."""
     reg = r["regions"]
@@ -53,10 +77,26 @@ def to_higgsfield(r: dict, report_url: str | None = None) -> str:
     return "\n".join(lines)
 
 
+def to_text_audio(r: dict) -> str:
+    lines = veredito_lines(r) + ["", f"Nota geral (áudio): {r['overall']:.0f}/100 ({r['verdict']})  ·  {r['meta']['duration']:.0f} s",
+                                 f"Gancho de voz: {_pct(r['hook'])}"]
+    ht = r.get("hook_text")
+    if ht:
+        lines.append(f"Gancho falado: {_pct(ht['score'])} (mecanismos: {', '.join(ht['signals']) or 'nenhum'})")
+    lines += ["", "Sinais medidos:"] + [f"  {m['name']}: {m['value']} {m['unit']} [{m['kind']}]" for m in r["measured"]]
+    lines += ["", "O que corrigir (por prioridade):" if r["fixes"] else "Nada crítico encontrado."]
+    lines += [f"  - ({f['area']}) {f['text']}" for f in r["fixes"]]
+    lines += [f"\nAviso: {w}" for w in r.get("warnings", [])]
+    lines += ["", "Só áudio: sem análise de imagem. Envie o vídeo (MP4) para avaliar também imagem, cortes e legenda."]
+    return "\n".join(lines)
+
+
 def to_text(r: dict, report_url: str | None = None) -> str:
+    if r.get("mode") == "audio":
+        return to_text_audio(r)
     reg = r["regions"]
     sr = strongest_region(r)
-    lines = [
+    lines = veredito_lines(r) + [""] + [
         f"Nota geral: {r['overall']:.0f}/100 ({r['verdict']})  ·  {r['meta']['platform']}",
         f"Gancho (0-3 s): {_pct(r['hook'])}  |  Pico do gancho: {r['peak_hook_pct']}% em {r['peak_hook_second']}s",
         f"Sustentação: {_pct(r['sustain'])}  |  Nível médio do corpo: {_pct(r['body'])}",
@@ -81,6 +121,11 @@ def to_text(r: dict, report_url: str | None = None) -> str:
         p = r["probability"]
         lines.append(f"Probabilidade calibrada de superar a mediana do seu canal: {p['p'] * 100:.0f}% "
                      f"(AUC leave-one-out {p['auc_loo']:.2f}, n={p['n']})")
+    tr = r.get("transcript")
+    if tr:
+        lines.append(f"Texto lido (fonte: {tr['source']}; {tr['words']} palavras): «{tr['text'][:160]}{'…' if len(tr['text']) > 160 else ''}»")
+    lines.append("")
+    lines += scenes_lines(r)
     lines.append("")
     lines.append("O que corrigir (por prioridade):" if r["fixes"] else "Nada crítico encontrado.")
     for f in r["fixes"]:
@@ -90,6 +135,7 @@ def to_text(r: dict, report_url: str | None = None) -> str:
         lines.append(f"  - ({f['area']}){t} {f['text']}")
     if report_url:
         lines += ["", f"Relatório: {report_url}"]
+    lines += [f"\nAviso: {w}" for w in r.get("warnings", [])]
     lines += ["", "Aviso: mede a qualidade de atenção do material com sinais do arquivo; não prevê views. "
               "Para uma probabilidade do SEU canal, use `viralscope calibrate`."]
     return "\n".join(lines)
@@ -152,7 +198,7 @@ def to_html(r: dict, title: str = "Relatório viralscope") -> str:
     regions = "".join(rows)
 
     comp_names = {"hook": "Gancho", "body": "Corpo", "sustain": "Sustentação", "no_drift": "Sem divagação",
-                  "image": "Imagem", "format": "Formato", "loop": "Loop", "captions": "Legendas", "audio_tech": "Áudio técnico"}
+                  "image": "Imagem", "format": "Formato", "loop": "Loop", "captions": "Legendas", "audio_tech": "Áudio técnico", "script": "Roteiro"}
     comps = "".join(f'<div class="ch"><span>{comp_names[k]}</span><div class="bar"><i style="width:{v * 100:.0f}%"></i></div><b>{v * 100:.0f}%</b></div>'
                     for k, v in r["components"].items())
     fixes = "".join(
@@ -167,6 +213,13 @@ def to_html(r: dict, title: str = "Relatório viralscope") -> str:
         b64 = base64.b64encode(jpg).decode()
         frames += f'<figure><img alt="quadro em {t} s" src="data:image/jpeg;base64,{b64}"><figcaption>{t} s</figcaption></figure>'
     frames = f'<h3>Primeiros segundos (o que o espectador vê)</h3><div class="frames">{frames}</div>' if frames else ""
+    vcards = "".join(
+        f'<div class="vd {x["label"].replace(" ", "")}"><b>{html.escape(x["headline"])}</b>'
+        + "".join(f"<div class='ac'>→ {html.escape(a)}</div>" for a in x["actions"][:3]) + "</div>"
+        for x in r.get("verdicts", []))
+    scn = "".join(
+        f'<tr><td>{s["t0"]:.1f}–{s["t1"]:.1f} s</td><td>{s["label"]}</td><td>{s["engagement"] * 100:.0f}%</td>'
+        f'<td>{html.escape(s["note"])}</td></tr>' for s in r.get("scenes", []))
     prob = ""
     if r.get("probability") is not None:
         p = r["probability"]
@@ -193,6 +246,8 @@ h1{{font-size:1.3rem;margin:.2rem 0}} h3{{margin:1.6rem 0 .4rem}}
 .frames{{display:flex;gap:8px;overflow-x:auto}} figure{{margin:0}} figure img{{height:160px;border-radius:8px;display:block}} figcaption{{font-size:12px;color:var(--mute);text-align:center}}
 ul{{padding-left:1.1rem}} li{{margin:.4rem 0}} .tag{{font-style:normal;font-size:12px;background:var(--card);border-radius:6px;padding:1px 6px;margin-right:4px}} .t{{color:var(--mute);font-size:13px}}
 table{{border-collapse:collapse;width:100%;font-size:14px}} td{{padding:4px 6px;border-bottom:1px solid var(--line)}}
+.vd{{background:var(--card);border-radius:10px;padding:10px 12px;margin:8px 0;border-left:5px solid var(--mute)}}
+.vd.bom{{border-color:var(--c2)}} .vd.ok{{border-color:var(--c3)}} .vd.fraco{{border-color:var(--c4)}} .ac{{color:var(--mute);font-size:14px;margin-top:3px}}
 .k{{font-size:11px;border-radius:6px;padding:1px 6px;background:var(--card)}} .k.medido{{color:var(--c2)}} .k.proxy{{color:var(--c3)}} .k.heurística{{color:var(--c5)}}
 </style></head><body>
 <h1>{html.escape(title)}</h1><small>{html.escape(r['meta']['platform'])} · {r['meta']['width']}x{r['meta']['height']} · {r['meta']['duration']:.1f} s</small>
@@ -202,7 +257,8 @@ table{{border-collapse:collapse;width:100%;font-size:14px}} td{{padding:4px 6px;
 <div class="card"><small>Pico do gancho</small><b>{r['peak_hook_pct']}% <small>em {r['peak_hook_second']} s</small></b></div>
 <div class="card"><small>Sustentação</small><b>{r['sustain'] * 100:.0f}%</b></div>
 <div class="card"><small>Divagação (menor é melhor)</small><b>{(reg['default_mode'] or 0) * 100:.0f}%</b></div>{prob}</div>
-{hooktxt}{frames}
+<h3>Veredito</h3>{vcards}{hooktxt}{frames}
+<h3>Cena por cena</h3><table>{scn}</table>
 <h3>Engajamento por segundo</h3>{svg}<div class="legend">{legend}</div>
 <small>Faixa azul = gancho · faixas vermelhas = risco de divagação · marcas vermelhas na base = cortes</small>
 <h3>Regiões <small>(proxies de sinais do arquivo; não medem atividade cerebral)</small></h3>{regions}

@@ -57,7 +57,7 @@ def vids(tmp_path_factory):
     p = {k: str(d / f"{k}.mp4") for k in
          ["dyn", "flat", "slow", "noaudio", "blackstart", "landscape", "blur", "dark", "caption", "nocaption", "unsafe", "speech"]}
     size = "360x640"
-    noise = ["-f", "lavfi", "-i", "anoisesrc=a=0.3:d=12:c=pink,tremolo=f=4:d=0.9"]
+    noise = ["-f", "lavfi", "-i", "anoisesrc=a=0.3:d=12:c=pink:seed=7,tremolo=f=4:d=0.9"]
     segs = []
     for h in (0, 90, 180, 270):
         segs += ["-f", "lavfi", "-i", f"testsrc2=size={size}:rate=30:duration=3,hue=h={h}"]

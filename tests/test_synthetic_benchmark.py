@@ -26,7 +26,7 @@ def test_score_increases_with_cut_rate(tmp_path):
             segs += ["-f", "lavfi", "-i", f"color=c={palette[j % len(palette)]}:size=270x480:rate=30:duration={8 / k:.4f}"]
             parts.append(f"[{j}:v]")
         out = tmp_path / f"v{i}.mp4"
-        ff(*segs, "-f", "lavfi", "-i", "anoisesrc=a=0.3:d=8:c=pink,tremolo=f=4:d=0.9",
+        ff(*segs, "-f", "lavfi", "-i", "anoisesrc=a=0.3:d=8:c=pink:seed=7,tremolo=f=4:d=0.9",
            "-filter_complex", "".join(parts) + f"concat=n={k}:v=1:a=0[v]", "-map", "[v]", "-map", f"{k}:a",
            "-pix_fmt", "yuv420p", "-shortest", str(out))
         r = scoring.analyze(str(out), keyframes=False)

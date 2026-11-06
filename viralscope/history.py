@@ -15,7 +15,7 @@ import numpy as np
 from . import calibrate
 
 NAMES = {"hook": "gancho", "body": "corpo", "sustain": "sustentação", "no_drift": "ausência de divagação",
-         "image": "imagem", "format": "formato", "loop": "loop", "captions": "legendas", "audio_tech": "áudio técnico"}
+         "image": "imagem", "format": "formato", "loop": "loop", "captions": "legendas", "audio_tech": "áudio técnico", "script": "roteiro"}
 
 
 def home() -> str:
@@ -55,7 +55,7 @@ def refit() -> dict:
     st = {"n": n, "need": max(0, calibrate.MIN_N - n), "model": None, "error": None, "insights": []}
     if n < calibrate.MIN_N:
         return st
-    X = np.array([[r["components"][k] for k in calibrate.FEATURES] for r in rows])
+    X = np.array([[r["components"].get(k, 0.5) for k in calibrate.FEATURES] for r in rows])
     t = np.array([r["target"] for r in rows])
     try:
         m = calibrate.fit_arrays(X, t)

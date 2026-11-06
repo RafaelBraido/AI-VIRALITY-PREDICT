@@ -11,6 +11,25 @@ import numpy as np
 from . import frames as F
 
 
+def has_video(path: str) -> bool:
+    """False para MP3/WAV/M4A (só áudio). Capa embutida (attached_pic) não conta como vídeo."""
+    cmd = ["ffprobe", "-v", "error", "-show_streams", "-of", "json", path]
+    out = subprocess.run(cmd, capture_output=True, text=True)
+    if out.returncode != 0:
+        raise RuntimeError(f"ffprobe falhou: {out.stderr.strip() or 'arquivo inválido'}")
+    return any(s.get("codec_type") == "video" and not s.get("disposition", {}).get("attached_pic")
+               for s in json.loads(out.stdout).get("streams", []))
+
+
+def audio_duration(path: str) -> float:
+    cmd = ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "json", path]
+    out = subprocess.run(cmd, capture_output=True, text=True)
+    try:
+        return float(json.loads(out.stdout)["format"]["duration"])
+    except (KeyError, ValueError, json.JSONDecodeError):
+        raise RuntimeError("Não consegui ler a duração do áudio.")
+
+
 def probe(path: str) -> dict:
     """Metadados via ffprobe."""
     cmd = ["ffprobe", "-v", "error", "-show_streams", "-show_format", "-of", "json", path]

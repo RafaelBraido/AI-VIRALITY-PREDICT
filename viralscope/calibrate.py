@@ -14,12 +14,12 @@ import numpy as np
 
 from . import scoring
 
-FEATURES = ["hook", "body", "sustain", "no_drift", "image", "format", "loop", "captions", "audio_tech"]
+FEATURES = ["hook", "body", "sustain", "no_drift", "image", "format", "loop", "captions", "audio_tech", "script"]
 MIN_N = 20
 
 
 def vector(r: dict) -> list[float]:
-    return [float(r["components"][k]) for k in FEATURES]
+    return [float(r["components"].get(k, 0.5)) for k in FEATURES]  # script ausente = neutro
 
 
 def _fit(X: np.ndarray, y: np.ndarray, l2: float = 1.0, iters: int = 60):

@@ -10,13 +10,13 @@ from pathlib import Path
 
 from . import __version__, history, profiles, report, scoring, text
 
-VIDEO_EXT = (".mp4", ".mov", ".webm", ".mkv", ".m4v", ".avi")
+VIDEO_EXT = (".mp4", ".mov", ".webm", ".mkv", ".m4v", ".avi", ".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac")
 
 
 def _run(path: str, args) -> dict:
     weights = json.load(open(args.weights)) if getattr(args, "weights", None) else None
     r = scoring.analyze(path, getattr(args, "transcript", None), getattr(args, "transcribe", False),
-                        weights, platform=args.platform)
+                        weights, platform=args.platform, ocr=not getattr(args, "no_ocr", False))
     model = json.load(open(args.model)) if getattr(args, "model", None) else (
         None if getattr(args, "no_learned", False) else history.load_model())
     if model:
@@ -37,11 +37,11 @@ def cmd_analyze(args) -> int:
         print(f"Arquivo não encontrado: {args.video}", file=sys.stderr)
         return 2
     r = _run(args.video, args)
-    url = None if args.no_report else _write_report(r, args.video, args.out_dir)
+    url = None if (args.no_report or r.get("mode") == "audio") else _write_report(r, args.video, args.out_dir)
     if args.json:
         r["report_url"] = url
         print(report.to_json(r))
-    elif args.format == "higgsfield":
+    elif args.format == "higgsfield" and r.get("mode") != "audio":
         print(report.to_higgsfield(r, url))
     else:
         print(report.to_text(r, url))
@@ -79,7 +79,7 @@ def cmd_batch(args) -> int:
         except RuntimeError as e:
             print(f"! {f}: {e}", file=sys.stderr)
             continue
-        if not args.no_report:
+        if not args.no_report and r.get("mode") != "audio":
             _write_report(r, f, args.out_dir)
         rows.append({"video": f, "overall": r["overall"], "hook": r["hook"], "peak_hook_pct": r["peak_hook_pct"],
                      "sustain": r["sustain"], "default_mode": r["regions"]["default_mode"],
@@ -177,7 +177,8 @@ def main(argv=None) -> int:
         sp.add_argument("--weights", help="JSON com pesos da nota geral")
         sp.add_argument("--model", help="modelo gerado por `calibrate` (adiciona probabilidade calibrada)")
         sp.add_argument("--transcript", help="arquivo .srt/.vtt/.txt (ou o próprio texto)")
-        sp.add_argument("--transcribe", action="store_true", help="transcreve com whisper, se instalado")
+        sp.add_argument("--transcribe", action="store_true", help="usa Whisper se você já o tiver (não é necessário)")
+        sp.add_argument("--no-ocr", action="store_true", help="não lê o texto da tela (mais rápido)")
         sp.add_argument("--out-dir", default="viralscope_reports", help="onde salvar os relatórios HTML")
         sp.add_argument("--no-learned", action="store_true", help="ignora o modelo aprendido do canal")
         sp.add_argument("--no-report", action="store_true", help="não gera o HTML")

@@ -8,17 +8,17 @@ description: Analisa um vídeo curto (Short, Reel, TikTok) ou roteiro e devolve 
 Analisador local (sem login, sem API paga). Código em `viralscope/`; CLI `viralscope`.
 
 ## Antes de tudo
-1. `viralscope --version`. Se não existir: `pip install git+https://github.com/RafaelBraido/AI-VIRALITY-PREDICT` (precisa de `ffmpeg`).
-2. Se o usuário não deu o caminho do vídeo, peça.
+1. Se existirem as ferramentas MCP `analyze_video` etc., use-as. Senão `viralscope --version`; se não existir: `pip install git+https://github.com/RafaelBraido/AI-VIRALITY-PREDICT` (precisa de `ffmpeg`; OCR e o resto vêm junto, sem Whisper).
+2. Se o usuário não deu o caminho do vídeo/áudio, peça. Aceita MP4, MOV, WEBM, MP3, WAV, M4A.
 
 ## Comandos
-- Vídeo: `viralscope analyze VIDEO [--platform shorts|tiktok|reels] [--transcript arq.srt] --format higgsfield`
+- Vídeo ou áudio: `viralscope analyze ARQUIVO [--platform shorts|tiktok|reels]`. O texto (legenda embutida, .srt ao lado, texto na tela por OCR) é achado sozinho; `--transcript` só se o usuário tiver o roteiro. `--format higgsfield` para o resumo no formato Higgsfield.
 - Comparar: `viralscope compare A B` · Canal inteiro: `viralscope batch PASTA --csv rank.csv`
 - Thumbnail: `viralscope image IMG` · Ganchos: `viralscope hooks ARQ` · Roteiro: `viralscope script ARQ`
 - Aprender: depois que o vídeo tiver métrica real (retenção %, views em 7 dias), `viralscope learn VIDEO --target N`. Em lote: `viralscope learn --import arq.csv` (video,target). Estado: `viralscope learn --status`.
 
 ## Como responder
-1. Rode `analyze` (use `--json` se precisar dos números) e entregue: nota geral, pico do gancho, sustentação, as cinco regiões, a região mais forte, o risco e o link do relatório HTML.
+1. Rode `analyze` (use `--json` se precisar dos números). Comece pelo **VEREDITO** em linguagem direta (ex.: "o gancho está bom, mas o roteiro precisa melhorar porque…"), diga de onde veio o texto lido, depois nota geral, pico do gancho, sustentação, regiões, cenas fracas e o link do relatório HTML.
 2. Liste as 3-5 correções de maior prioridade **com o intervalo de segundos** e o que mudar.
 3. Se houver probabilidade calibrada, cite junto a AUC e o n. Se não houver, diga que ainda faltam vídeos com métrica real (mínimo 20).
 4. Ofereça registrar a métrica real do vídeo depois de alguns dias (`learn`), porque é assim que a ferramenta melhora no canal.

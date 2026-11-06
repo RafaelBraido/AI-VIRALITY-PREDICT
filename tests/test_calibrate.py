@@ -38,8 +38,8 @@ def test_apply_returns_probability_in_range():
     r = {"components": dict(zip(calibrate.FEATURES, X[0]))}
     p = calibrate.apply(m, r)
     assert 0.0 <= p["p"] <= 1.0 and p["n"] == 60
-    hi = {"components": dict(zip(calibrate.FEATURES, [1, 1, 1, 1, 1, 1, 1, 1, 1]))}
-    lo = {"components": dict(zip(calibrate.FEATURES, [0] * 9))}
+    hi = {"components": dict(zip(calibrate.FEATURES, [1] * len(calibrate.FEATURES)))}
+    lo = {"components": dict(zip(calibrate.FEATURES, [0] * len(calibrate.FEATURES)))}
     assert calibrate.apply(m, hi)["p"] > calibrate.apply(m, lo)["p"]
 
 

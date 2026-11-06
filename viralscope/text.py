@@ -185,3 +185,124 @@ def analyze_script(text: str, wps_target: float = 2.7) -> dict:
         "cta_at_end": has_cta_end,
         "notes": notes,
     }
+
+
+# ------------------------------------------------------- qualidade do roteiro (estrutura)
+_PAYOFF = (r"(por isso|o motivo|a resposta|o segredo é|o resultado|na prática|ou seja|conclusão|no fim das contas|"
+           r"resumindo|foi assim|e funcionou|the answer|that's why|that is why|the result|in short|so that's|bottom line)")
+_LOOP_MECH = {"pergunta", "lacuna de curiosidade", "contrário/mito", "prova/resultado"}
+
+
+def _trigram_repeat(words: list[str]) -> float:
+    tri = [" ".join(words[i:i + 3]) for i in range(len(words) - 2)]
+    if not tri:
+        return 0.0
+    return 1.0 - len(set(tri)) / len(tri)
+
+
+def script_quality(text: str, duration: float | None = None) -> dict:
+    """Nota 0..1 do ROTEIRO (sem o gancho, que é julgado à parte) + achados acionáveis em português.
+
+    HEURÍSTICA sobre o texto: clareza das frases, especificidade, promessa x entrega, repetição,
+    muletas, posição do pedido de ação (CTA) e força do final.
+    """
+    clean = " ".join(text.split())
+    words = clean.split()
+    sents = [s.strip() for s in re.split(r"(?<=[.!?])\s+", clean) if s.strip()]
+    if len(words) < 20:
+        return {"score": None, "notes": ["Texto muito curto para avaliar o roteiro (menos de 20 palavras)."], "metrics": {}}
+    low = clean.lower()
+    lens = [len(s.split()) for s in sents]
+    notes: list[dict] = []
+
+    def note(prio, msg, action):
+        notes.append({"priority": prio, "problem": msg, "action": action})
+
+    # clareza
+    long_n = sum(1 for n in lens if n > 22)
+    clarity = float(np.clip(1.0 - 0.9 * long_n / max(1, len(lens)) - max(0.0, float(np.mean(lens)) - 18) / 30, 0, 1))
+    if long_n:
+        note(0.6, f"{long_n} frase(s) com mais de 22 palavras", "quebre em frases de até ~15 palavras; fala corrida perde o espectador")
+    # especificidade
+    nums = len(re.findall(r"\d", low))
+    spec = float(1.0 - np.exp(-(nums / max(1, len(words)) * 100) / 1.5))
+    if spec < 0.25:
+        note(0.5, "roteiro vago: quase nenhum número, prazo ou exemplo concreto", "troque afirmações genéricas por um dado (\"8 meses\", \"R$ 500\", \"3 passos\")")
+    # promessa x entrega
+    head = score_hook_text(" ".join(words[:27]))
+    opened = bool(_LOOP_MECH & set(head["signals"]))
+    third = " ".join(sents[-max(1, len(sents) // 3):]).lower()
+    closes = bool(re.search(_PAYOFF, third))
+    closure = 1.0 if (not opened or closes) else 0.35
+    if opened and not closes:
+        note(0.85, "o começo abre uma pergunta/promessa, mas o final não mostra a resposta", "feche o ciclo no fim (\"por isso…\", \"o resultado foi…\") ou o espectador sente que ficou sem payoff")
+    # repetição e muletas
+    rep = _trigram_repeat([w.strip(".,!?").lower() for w in words])
+    if rep > 0.12:
+        note(0.45, f"trechos repetidos ({rep * 100:.0f}% das sequências de 3 palavras)", "corte a repetição; cada frase tem de avançar a história")
+    toks = [w.strip(".,!?;:").lower() for w in words]
+    filler = sum(1 for w in toks if w in _FILLER_WORDS) / len(words)
+    if filler > 0.03:
+        note(0.4, "muitas muletas (\"tipo\", \"né\", \"então\")", "enxugue na edição do texto")
+    # CTA
+    cta_idx = [i for i, s in enumerate(sents) if re.search(_CTA_END, s.lower())]
+    cta_early = any(i < max(1, len(sents) // 4) for i in cta_idx)
+    cta_end = any(i >= len(sents) - 2 for i in cta_idx)
+    if cta_early:
+        note(0.6, "pedido de inscrição/comentário logo no começo", "deixe o pedido para o fim; no início ele afasta")
+    # final
+    last = sents[-1].lower()
+    ending = 1.0 if (cta_end or re.search(_PAYOFF, last) or "?" in last) else 0.55
+    if ending < 1.0:
+        note(0.5, "o final termina sem fecho, pergunta ou chamada", "termine com um fecho claro: a conclusão, uma pergunta que gere comentário ou o gancho do próximo vídeo")
+    # tamanho x duração
+    pace_note = None
+    if duration:
+        wps = len(words) / duration
+        if wps > 3.6:
+            note(0.5, f"texto longo demais para {duration:.0f} s (~{wps:.1f} palavras/s)", "corte ~{:.0f}% do texto ou aumente a duração".format((1 - 3.0 / wps) * 100))
+        elif wps < 1.5:
+            note(0.3, f"pouco texto para {duration:.0f} s (~{wps:.1f} palavras/s)", "há muito tempo sem fala; acrescente conteúdo ou corte a duração")
+    score = (0.20 * clarity + 0.25 * spec + 0.20 * closure + 0.15 * (1 - min(1.0, rep * 4)) + 0.10 * (1 - min(1.0, filler * 8)) + 0.10 * ending)
+    score = float(np.clip(score - (0.15 if cta_early else 0.0), 0, 1))
+    notes.sort(key=lambda n: -n["priority"])
+    return {"score": score, "notes": notes,
+            "metrics": {"palavras": len(words), "frases": len(sents), "media_palavras_frase": round(float(np.mean(lens)), 1),
+                        "especificidade": round(spec, 2), "repeticao": round(rep, 2), "muletas": round(filler, 3),
+                        "abre_promessa": opened, "fecha_promessa": closes}}
+
+
+def script_from_audio(a: dict, seconds: int) -> dict:
+    """PROXY do roteiro quando só há áudio (sem texto): cobertura de fala, regularidade, vazios e final.
+
+    Não lê o conteúdo: só dá pistas de estrutura. Envie a legenda/roteiro (ou use --transcribe) para a análise real.
+    """
+    S = max(1, seconds)
+    sy = a["syll_rate"][:S]
+    coverage = float((sy >= 2).mean())
+    cov = float(np.clip(coverage / 0.6, 0, 1))
+    talk = sy[sy >= 2]
+    cons = float(np.clip(1.0 - (talk.std() / (talk.mean() + 1e-9)) / 0.6, 0, 1)) if len(talk) >= 3 else 0.5
+    sil = a["silent"][:S]
+    mid = sil[max(0, S // 8): S - max(1, S // 8)]
+    longest, run = 0, 0
+    for v in mid:
+        run = run + 1 if v else 0
+        longest = max(longest, run)
+    dead = float(np.clip(1.0 - max(0, longest - 1) / 4.0, 0, 1))
+    loud = a["loud_db"][:S]
+    tail = loud[int(S * 0.8):] if S >= 5 else loud
+    drop = float(np.mean(loud[~sil]) - np.mean(tail[tail > -50])) if (~sil).any() and (tail > -50).any() else 0.0
+    ending = float(np.clip(1.0 - max(0.0, drop - 3.0) / 10.0, 0, 1))
+    notes = []
+    if cov < 0.5:
+        notes.append({"priority": 0.6, "problem": f"fala em só {coverage * 100:.0f}% do vídeo", "action": "preencha os vazios com narração ou corte as partes sem fala"})
+    if longest >= 3:
+        notes.append({"priority": 0.7, "problem": f"pausa de {longest} s no meio do vídeo", "action": "corte a pausa ou cubra com som/efeito; é onde o espectador sai"})
+    if drop > 8:
+        notes.append({"priority": 0.5, "problem": "a energia cai no final", "action": "termine com a frase mais forte, não com a voz morrendo"})
+    if len(talk) >= 3 and cons < 0.4:
+        notes.append({"priority": 0.3, "problem": "ritmo de fala muito irregular", "action": "regrave os trechos mais lentos ou acelere a edição neles"})
+    score = 0.35 * cov + 0.25 * cons + 0.20 * dead + 0.20 * ending
+    return {"score": float(score), "notes": notes, "proxy": True,
+            "metrics": {"cobertura_fala": round(coverage, 2), "maior_pausa_s": longest, "queda_final_db": round(drop, 1)}}
