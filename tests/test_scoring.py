@@ -71,7 +71,7 @@ def test_captions_component_and_unsafe_zone(R):
 
 def test_speech_pace_is_measured_without_transcript(R):
     m = {x["name"]: x["value"] for x in R["speech"]["measured"]}
-    assert abs(m["Ritmo de fala (envelope de voz)"] - 5.5) < 1.0
+    assert abs(m["Ritmo de fala (envelope de voz, corrigido)"] * 0.70 - 5.5) < 1.0  # bruto ~5,5; exibido = bruto/0,70
     assert R["speech"]["language_source"].startswith("ritmo de voz")
 
 

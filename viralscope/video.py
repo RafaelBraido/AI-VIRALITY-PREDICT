@@ -207,6 +207,11 @@ def extract(path: str, meta: dict, sample_fps: float = 8.0, keyframes: bool = Tr
     if n == 0:
         raise RuntimeError("Nenhum quadro lido.")
 
+    merged_cuts: list[float] = []
+    for ct in cut_times:  # animação gera 2 detecções seguidas no mesmo corte: junta as <0,5 s
+        if not merged_cuts or ct - merged_cuts[-1] >= 0.5:
+            merged_cuts.append(ct)
+    cut_times = merged_cuts
     real_dur = max(duration, last_t + dt)
     S = max(1, int(math.ceil(real_dur - 1e-6)))
     A = acc  # reaproveita o acumulador (tem folga de 2 s)

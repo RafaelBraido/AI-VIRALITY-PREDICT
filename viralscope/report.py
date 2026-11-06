@@ -124,10 +124,15 @@ def to_text(r: dict, report_url: str | None = None) -> str:
     tr = r.get("transcript")
     if tr:
         lines.append(f"Texto lido (fonte: {tr['source']}; {tr['words']} palavras): «{tr['text'][:160]}{'…' if len(tr['text']) > 160 else ''}»")
+    osn = r.get("on_screen") or {}
+    if osn.get("fixed"):
+        lines.append(f"Título fixo na tela: «{' '.join(osn['fixed'])}»")
+    if osn.get("speakers"):
+        lines.append(f"Quem fala (nomes na tela): {', '.join(osn['speakers'])}")
     lines.append("")
     lines += scenes_lines(r)
     lines.append("")
-    lines.append("O que corrigir (por prioridade):" if r["fixes"] else "Nada crítico encontrado.")
+    lines.append("Ajustes técnicos (por prioridade):" if r["fixes"] else "Nenhum ajuste técnico além do veredito acima.")
     for f in r["fixes"]:
         t = ""
         if f["time"]:
@@ -204,7 +209,7 @@ def to_html(r: dict, title: str = "Relatório viralscope") -> str:
     fixes = "".join(
         f'<li><em class="tag">{html.escape(f["area"])}</em>'
         + (f' <span class="t">{f["time"][0]}–{f["time"][1]} s</span>' if f["time"] else "")
-        + f' {html.escape(f["text"])}</li>' for f in r["fixes"]) or "<li>Nada crítico encontrado.</li>"
+        + f' {html.escape(f["text"])}</li>' for f in r["fixes"]) or "<li>Nenhum ajuste técnico além do veredito acima.</li>"
     meas = "".join(
         f'<tr><td>{html.escape(m["name"])}</td><td>{html.escape("n/d" if m["value"] is None else str(m["value"]))} {html.escape(m["unit"])}</td>'
         f'<td><span class="k {m["kind"]}">{KIND_PT.get(m["kind"], m["kind"])}</span></td></tr>' for m in r["measured"])

@@ -79,7 +79,7 @@ def build(res: dict, v: dict, a: dict | None, hook_parts: dict, script: dict | N
     sh, lm, fo = float(np.mean(v["sharpness_raw"])), float(np.mean(v["luma_mean"])), float(np.mean(v["focus"]))
     if sh < 60:
         acts.append("melhore a nitidez (foco, bitrate ou resolução)")
-    if lm < 70:
+    if lm < 55:
         acts.append("clareie a imagem; está escura")
     elif lm > 190:
         acts.append("reduza a exposição; está estourada")

@@ -10,6 +10,9 @@ SR = 16000
 HOP = 160          # 10 ms
 WIN = 400          # 25 ms
 SILENCE_DB = -50.0
+# Em 4 vídeos reais (legenda como referência: ~6,1–6,8 sílabas/s) o contador por envelope leu 4,3–4,8:
+# subconta ~30% em fala real com música/efeitos. A correção só vale para o ritmo exibido/pontuado, nunca para a contagem bruta.
+SYLL_CAL = 0.70
 
 
 def load(path: str) -> np.ndarray | None:
@@ -63,18 +66,18 @@ def analyze_signal(x: np.ndarray, seconds: int, sr: int = SR) -> dict:
     fps_f = SR / HOP  # quadros por segundo (100)
     active = frame_db > SILENCE_DB
     # --- sílabas: picos do envelope de voz, separados por >=120 ms e com proeminência >= 3 dB
-    k = np.ones(5) / 5.0
+    k = np.ones(3) / 3.0
     env = np.convolve(env_db, k, mode="same")
-    floor = np.percentile(env, 90) - 28.0 if len(env) else 0.0
+    floor = np.percentile(env, 90) - 35.0 if len(env) else 0.0
     peaks = []
     last = -999
     for i in range(2, len(env) - 2):
         if env[i] < floor or not active[i] or voice_ratio[i] < 0.45:
             continue
-        if env[i] >= env[i - 1] and env[i] > env[i + 1] and i - last >= 12:
-            lo = max(0, i - 12)
-            hi = min(len(env), i + 13)
-            if env[i] - min(env[lo:i + 1].min(), env[i:hi].min()) >= 3.0:
+        if env[i] >= env[i - 1] and env[i] > env[i + 1] and i - last >= 6:
+            lo = max(0, i - 6)
+            hi = min(len(env), i + 7)
+            if env[i] - min(env[lo:i + 1].min(), env[i:hi].min()) >= 1.5:
                 peaks.append(i)
                 last = i
     syll = np.zeros(seconds)

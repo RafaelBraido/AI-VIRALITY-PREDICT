@@ -122,6 +122,10 @@ pytest
 
 70 testes: unidades de imagem/áudio/texto, vídeos sintéticos (cortes exatos, início preto, sem áudio, horizontal, borrado, escuro, legenda dentro/fora da zona segura, fala sintética de 3/5,5/7 sílabas/s), CLI, calibração (recupera sinal, ruído dá AUC ≈ 0,5, recusa n pequeno) as três fontes de texto (OCR da tela, `.srt` ao lado, legenda embutida), o modo só-áudio, o servidor MCP e um benchmark sintético de ordenação. **Eles validam que o código mede o que diz medir; não validam previsão de viralização.**
 
+## Velocidade
+
+~15 s por vídeo de 1 min (4 vídeos de 1080x1920 em ~1 min): o OCR lê só a faixa das legendas, em paralelo, enquanto o vídeo e o áudio são analisados. `--no-ocr` pula a leitura do texto (~8 s).
+
 ## Limites
 
 - Não prevê views; tema, distribuição, canal e horário ficam de fora.

@@ -189,7 +189,8 @@ def analyze_script(text: str, wps_target: float = 2.7) -> dict:
 
 # ------------------------------------------------------- qualidade do roteiro (estrutura)
 _PAYOFF = (r"(por isso|o motivo|a resposta|o segredo é|o resultado|na prática|ou seja|conclusão|no fim das contas|"
-           r"resumindo|foi assim|e funcionou|the answer|that's why|that is why|the result|in short|so that's|bottom line)")
+           r"resumindo|foi assim|e funcionou|quer dizer|isso significa|significa que|então|é isso|agora você sabe|"
+           r"the answer|that's why|that is why|the result|in short|so that's|bottom line|that means)")
 _LOOP_MECH = {"pergunta", "lacuna de curiosidade", "contrário/mito", "prova/resultado"}
 
 
@@ -200,14 +201,31 @@ def _trigram_repeat(words: list[str]) -> float:
     return 1.0 - len(set(tri)) / len(tri)
 
 
-def script_quality(text: str, duration: float | None = None) -> dict:
+def split_glued(text: str) -> str:
+    """OCR de fonte MAIÚSCULA cola palavras: quebra token com mais de 12 letras em pedaços de ~6 (≈ 1 palavra)."""
+    out = []
+    for tok in text.split():
+        if len(tok) <= 12:
+            out.append(tok)
+        else:
+            n = int(round(len(tok) / 6.0))
+            size = -(-len(tok) // n)
+            out += [tok[i:i + size] for i in range(0, len(tok), size)]
+    return " ".join(out)
+
+
+def count_words(text: str) -> int:
+    return len(split_glued(text).split())
+
+
+def script_quality(text: str, duration: float | None = None, ocr: bool = False) -> dict:
     """Nota 0..1 do ROTEIRO (sem o gancho, que é julgado à parte) + achados acionáveis em português.
 
     HEURÍSTICA sobre o texto: clareza das frases, especificidade, promessa x entrega, repetição,
     muletas, posição do pedido de ação (CTA) e força do final.
     """
     clean = " ".join(text.split())
-    words = clean.split()
+    words = split_glued(clean).split() if ocr else clean.split()
     sents = [s.strip() for s in re.split(r"(?<=[.!?])\s+", clean) if s.strip()]
     if len(words) < 20:
         return {"score": None, "notes": ["Texto muito curto para avaliar o roteiro (menos de 20 palavras)."], "metrics": {}}
@@ -231,11 +249,11 @@ def script_quality(text: str, duration: float | None = None) -> dict:
     # promessa x entrega
     head = score_hook_text(" ".join(words[:27]))
     opened = bool(_LOOP_MECH & set(head["signals"]))
-    third = " ".join(sents[-max(1, len(sents) // 3):]).lower()
-    closes = bool(re.search(_PAYOFF, third))
+    half = " ".join(sents[len(sents) // 2:]).lower()  # a entrega costuma vir no meio e o fim vira fecho/CTA
+    closes = bool(re.search(_PAYOFF, half))
     closure = 1.0 if (not opened or closes) else 0.35
     if opened and not closes:
-        note(0.85, "o começo abre uma pergunta/promessa, mas o final não mostra a resposta", "feche o ciclo no fim (\"por isso…\", \"o resultado foi…\") ou o espectador sente que ficou sem payoff")
+        note(0.6, "o começo abre uma pergunta/promessa e não identifiquei uma resposta clara na segunda metade (heurística por palavras-chave)", "se a resposta existe, deixe-a explícita (\"então…\", \"ou seja…\", \"o resultado foi…\"); se não, o espectador sente que ficou sem payoff")
     # repetição e muletas
     rep = _trigram_repeat([w.strip(".,!?").lower() for w in words])
     if rep > 0.12:
@@ -252,7 +270,7 @@ def script_quality(text: str, duration: float | None = None) -> dict:
         note(0.6, "pedido de inscrição/comentário logo no começo", "deixe o pedido para o fim; no início ele afasta")
     # final
     last = sents[-1].lower()
-    ending = 1.0 if (cta_end or re.search(_PAYOFF, last) or "?" in last) else 0.55
+    ending = 1.0 if (cta_end or re.search(_PAYOFF, last) or "?" in last or re.search(r"coment", last)) else 0.55
     if ending < 1.0:
         note(0.5, "o final termina sem fecho, pergunta ou chamada", "termine com um fecho claro: a conclusão, uma pergunta que gere comentário ou o gancho do próximo vídeo")
     # tamanho x duração
@@ -265,6 +283,7 @@ def script_quality(text: str, duration: float | None = None) -> dict:
             note(0.3, f"pouco texto para {duration:.0f} s (~{wps:.1f} palavras/s)", "há muito tempo sem fala; acrescente conteúdo ou corte a duração")
     score = (0.20 * clarity + 0.25 * spec + 0.20 * closure + 0.15 * (1 - min(1.0, rep * 4)) + 0.10 * (1 - min(1.0, filler * 8)) + 0.10 * ending)
     score = float(np.clip(score - (0.15 if cta_early else 0.0), 0, 1))
+    score = float(np.clip(score - min(0.35, 0.08 * sum(1 for n in notes if n["priority"] >= 0.4)), 0, 1))  # nota concorda com a lista
     notes.sort(key=lambda n: -n["priority"])
     return {"score": score, "notes": notes,
             "metrics": {"palavras": len(words), "frases": len(sents), "media_palavras_frase": round(float(np.mean(lens)), 1),

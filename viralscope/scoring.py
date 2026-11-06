@@ -119,16 +119,25 @@ def analyze(path: str, transcript: str | None = None, do_transcribe: bool = Fals
     if not video_mod.has_video(path):
         return analyze_audio(path, transcript, do_transcribe, platform)
     meta = video_mod.probe(path)
+    pre = captions_mod.prepare(path, meta["duration"], transcript, ocr)  # OCR já começa em outros processos
     v = video_mod.extract(path, meta, keyframes=keyframes,
                           safe_bottom=prof["safe_bottom"], safe_right=prof["safe_right"])
     S = v["seconds"]
     a = audio_mod.extract(path, S) if meta["has_audio"] else None
 
-    cues, source = captions_mod.find(path, meta["duration"], transcript, do_transcribe, ocr)
+    cues, source, extra = captions_mod.resolve(pre, path, do_transcribe)
     # tempo de exibição de legenda não é tempo de fala: só texto "de fala" vira palavras/s
-    wps = text_mod.words_per_second(cues, S) if (cues and source != "texto lido na tela (OCR)") else None
-    res = build(v, a, meta, cues, wps, W, prof)
+    wps = text_mod.words_per_second(cues, S) if cues else None
+    if wps is not None and source == "texto lido na tela (OCR)":
+        # o OCR cola palavras: corrige a contagem por trecho (legenda aparece enquanto é falada)
+        wps = text_mod.words_per_second([(a_, b_, text_mod.split_glued(t_)) for a_, b_, t_ in cues], S)
+    early = [g for t_, g in (extra or {}).get("graphics", []) if t_ < 3.0]  # banners/títulos que já aparecem no gancho
+    title = " ".join((extra or {}).get("fixed", []) + early) if extra else None
+    res = build(v, a, meta, cues, wps, W, prof, title=title or None, ocr_text=(source == "texto lido na tela (OCR)"))
     res["transcript"] = _transcript_info(cues, source)
+    res["on_screen"] = extra or {}
+    if res["language_source"] == "transcrição" and source and source != "texto enviado por você":
+        res["language_source"] = f"legenda ({source})"
     res["warnings"] = _warnings(cues, a)
     return res
 
@@ -210,7 +219,7 @@ def analyze_audio(path: str, transcript: str | None = None, do_transcribe: bool 
            "warnings": _warnings(cues, a),
            "measured": [{"name": n_, "value": val, "unit": u, "kind": k_} for n_, val, u, k_ in [
                ("Primeiro som", None if a["first_sound_s"] is None else round(a["first_sound_s"], 2), "s", "medido"),
-               ("Ritmo de fala (envelope de voz)", round(a["speech_rate_syl_s"], 1), "sílabas/s", "proxy"),
+               ("Ritmo de fala (envelope de voz, corrigido)", round(a["speech_rate_syl_s"] / audio_mod.SYLL_CAL, 1), "sílabas/s", "proxy"),
                ("Silêncio", f"{a['silence_ratio'] * 100:.0f}%", "", "medido"),
                ("Loudness integrada", None if not ebu else ebu["lufs"], "LUFS", "medido")]]}
     res["verdicts"] = verdict_mod.build_audio(res, a)
@@ -218,7 +227,8 @@ def analyze_audio(path: str, transcript: str | None = None, do_transcribe: bool 
     return res
 
 
-def build(v: dict, a: dict | None, meta: dict, cues, wps, W: dict, prof: dict) -> dict:
+def build(v: dict, a: dict | None, meta: dict, cues, wps, W: dict, prof: dict, title: str | None = None,
+          ocr_text: bool = False) -> dict:
     S = v["seconds"]
     z = np.zeros(S)
 
@@ -245,9 +255,9 @@ def build(v: dict, a: dict | None, meta: dict, cues, wps, W: dict, prof: dict) -
     language, language_src = None, "ausente"
     if wps is not None:
         language = _smooth(_pace(wps, 1.8, 3.4))
-        language_src = "transcrição"
+        language_src = "transcrição"  # ajustado abaixo se a fonte for OCR
     elif a is not None and a["speech_seconds"] >= 2:
-        language = _smooth(_pace(a["syll_rate"], 4.0, 7.5))
+        language = _smooth(_pace(a["syll_rate"] / audio_mod.SYLL_CAL, 4.0, 7.5))
         language_src = "ritmo de voz medido no áudio"
     elif a is not None:
         language = z.copy()
@@ -295,7 +305,11 @@ def build(v: dict, a: dict | None, meta: dict, cues, wps, W: dict, prof: dict) -
         parts["audio"] = (0.10, 0.0)
     hook_info = None
     if cues:
-        hook_info = text_mod.score_hook_text(text_mod.opening_text(cues))
+        opening = text_mod.opening_text(cues)
+        hook_info = text_mod.score_hook_text((title + " " + opening) if title else opening)
+        parts["text"] = (0.15, hook_info["score"])
+    elif title:
+        hook_info = text_mod.score_hook_text(title)
         parts["text"] = (0.15, hook_info["score"])
     hook = float(sum(w * x for w, x in parts.values()) / sum(w for w, _ in parts.values()))
     peak_sec = int(np.argmax(engagement[: min(5, S)]))
@@ -321,7 +335,7 @@ def build(v: dict, a: dict | None, meta: dict, cues, wps, W: dict, prof: dict) -
 
     script = None
     if cues:
-        script = text_mod.script_quality(" ".join(t for _, _, t in cues), meta["duration"])
+        script = text_mod.script_quality(" ".join(t for _, _, t in cues), meta["duration"], ocr=ocr_text)
     if (script is None or script.get("score") is None) and a is not None and a["speech_seconds"] >= 3:
         script = text_mod.script_from_audio(a, S)
     comps = {"hook": hook, "body": body, "sustain": sustain, "no_drift": 1 - drift, "image": image_q,
@@ -384,7 +398,7 @@ def _measured(v, a, ebu, meta, text_sec) -> list[dict]:
         m += [
             ("Primeiro som", None if a["first_sound_s"] is None else round(a["first_sound_s"], 2), "s", "medido"),
             ("Primeira sílaba de fala", None if a["first_speech_s"] is None else round(a["first_speech_s"], 2), "s", "medido"),
-            ("Ritmo de fala (envelope de voz)", round(a["speech_rate_syl_s"], 1), "sílabas/s", "proxy"),
+            ("Ritmo de fala (envelope de voz, corrigido)", round(a["speech_rate_syl_s"] / audio_mod.SYLL_CAL, 1), "sílabas/s", "proxy"),
             ("Silêncio", f"{a['silence_ratio'] * 100:.0f}%", "", "medido"),
             ("Clipping (amostras estouradas)", f"{a['clip_ratio'] * 100:.2f}%", "", "medido"),
         ]
@@ -431,7 +445,7 @@ def _fixes(v, a, ebu, meta, prof, comps, res, cues, wps, hook_info, fmt_notes, a
         if a["clip_ratio"] > 0.005 or (ebu and ebu["true_peak_db"] is not None and ebu["true_peak_db"] > -0.5):
             add(0.5, "áudio", "Áudio estourando (clipping); abaixe o ganho ou use limitador.")
         if a["speech_seconds"] >= 3:
-            r = a["speech_rate_syl_s"]
+            r = a["speech_rate_syl_s"] / audio_mod.SYLL_CAL
             if r > 8.5:
                 add(0.4, "linguagem", f"Fala muito rápida (~{r:.1f} sílabas/s); ideal entre 5 e 7,5.")
             elif r < 4.0:

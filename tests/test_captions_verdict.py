@@ -15,9 +15,8 @@ SRT = ("1\n00:00:00,400 --> 00:00:03,000\nVocê está errando isso há 8 meses?\
 
 def test_ocr_reads_burned_in_text_without_any_input(vids):
     r = scoring.analyze(vids["caption"])
-    assert r["transcript"]["source"] == "texto lido na tela (OCR)"
-    t = r["transcript"]["text"].upper().replace(" ", "")
-    assert "ERRANDO" in t and "MESES" in t
+    shown = (" ".join(r["on_screen"].get("fixed", [])) + " " + ((r["transcript"] or {}).get("text") or "")).upper().replace(" ", "")
+    assert "ERRANDO" in shown and "MESES" in shown
 
 
 def test_no_text_no_ocr_result_for_clean_video(vids):
@@ -31,7 +30,7 @@ def test_sidecar_srt_is_found_next_to_video(vids, tmp_path):
     (tmp_path / "meu.srt").write_text(SRT, encoding="utf-8")
     r = scoring.analyze(str(v))
     assert r["transcript"]["source"].startswith("arquivo .srt")
-    assert r["language_source"] == "transcrição" and r["script"]["score"] is not None
+    assert r["language_source"].startswith("legenda") and r["script"]["score"] is not None
 
 
 def test_embedded_subtitle_track_is_read(vids, tmp_path):
@@ -102,5 +101,6 @@ def test_audio_only_cli(tmp_path, capsys):
 
 
 def test_ocr_cues_merge_repeated_text(vids):
-    cues = captions.ocr_cues(vids["caption"], 8.0)
-    assert cues and len(cues) <= 2 and cues[0][1] - cues[0][0] > 4
+    cues, extra = captions.ocr_read(vids["caption"], 8.0)
+    # o texto fica na tela o vídeo todo: é "fixo" (título), não legenda do diálogo
+    assert extra["fixed"] and "ERRANDO" in "".join(extra["fixed"]).upper().replace(" ", "")

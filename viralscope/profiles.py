@@ -10,7 +10,7 @@ PROFILES = {
     "shorts": {
         "nome": "YouTube Shorts",
         "aspect": 9 / 16,
-        "ideal_dur": (15.0, 50.0),   # faixa em que o formato costuma funcionar bem
+        "ideal_dur": (15.0, 60.0),   # prior: Shorts de até ~1 min; o limite do formato é maior
         "max_dur": 180.0,            # limite atual do formato
         "safe_bottom": 0.22,         # fração inferior coberta por título/botões
         "safe_right": 0.14,          # coluna direita com ícones
