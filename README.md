@@ -104,11 +104,13 @@ viralscope learn --status
 
 Cada registro reajusta o modelo do canal (`./.viralscope/`, ou `$VIRALSCOPE_HOME`) e `analyze` passa a mostrar a probabilidade calibrada sozinho. Abaixo de 20 vídeos nada é prometido; depois disso a AUC leave-one-out mostra se o modelo presta, e ele diz o que mais separa os seus bons vídeos dos ruins.
 
-## Conectar ao Claude (3 jeitos)
+## Conectar ao Claude
 
-1. **Plugin (skill + MCP, o mais fácil):** `/plugin marketplace add RafaelBraido/AI-VIRALITY-PREDICT` e `/plugin install viralscope@viralscope`.
-2. **Só o servidor MCP:** `pip install git+https://github.com/RafaelBraido/AI-VIRALITY-PREDICT` e `claude mcp add viralscope -- viralscope-mcp`. O Claude ganha as ferramentas `analyze_video`, `analyze_script`, `rank_hooks`, `analyze_image` e `learn`; é só passar o caminho do vídeo.
-3. **Só a skill:** copie `skills/ViewerPredictor` para `~/.claude/skills/` (ou envie a pasta como skill no Claude.ai).
+A skill se chama **ViewerPredictor** (`/ViewerPredictor`).
+
+1. **Skill pessoal (recomendado, comando limpo `/ViewerPredictor`):** `cp -r skills/ViewerPredictor ~/.claude/skills/` (Windows: `C:\Users\SEU_USUARIO\.claude\skills\`). No Claude.ai, envie a pasta `ViewerPredictor` em `.zip` em Configurações → Skills. Se tiver uma versão antiga instalada (`viralscope`), apague-a antes e abra uma sessão nova. A skill chama o comando `viralscope`, então rode também `pip install git+https://github.com/RafaelBraido/AI-VIRALITY-PREDICT`.
+2. **Plugin (skill + MCP):** `/plugin marketplace add RafaelBraido/AI-VIRALITY-PREDICT` e `/plugin install viralscope@viralscope` (o comando aparece com prefixo do plugin).
+3. **Só o servidor MCP:** `claude mcp add viralscope -- viralscope-mcp` depois do `pip install`. O Claude ganha `analyze_video`, `analyze_script`, `rank_hooks`, `analyze_image` e `learn`; é só passar o caminho do vídeo.
 
 ## Calibração (o caminho para uma probabilidade real)
 
