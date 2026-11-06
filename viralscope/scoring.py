@@ -138,7 +138,8 @@ def analyze(path: str, transcript: str | None = None, do_transcribe: bool = Fals
         wps = text_mod.words_per_second([(a_, b_, text_mod.split_glued(t_)) for a_, b_, t_ in cues], S)
     early = [g for t_, g in (extra or {}).get("graphics", []) if t_ < 3.0]  # banners/títulos que já aparecem no gancho
     title = " ".join((extra or {}).get("fixed", []) + early) if extra else None
-    res = build(v, a, meta, cues, wps, W, prof, title=title or None, ocr_text=(source == "texto lido na tela (OCR)"))
+    res = build(v, a, meta, cues, wps, W, prof, title=title or None, ocr_text=(source == "texto lido na tela (OCR)"),
+                graphics=(extra or {}).get("graphics"))
     res["elapsed_s"] = round(time.time() - t0, 1)
     res["transcript"] = _transcript_info(cues, source)
     res["on_screen"] = extra or {}
@@ -234,7 +235,7 @@ def analyze_audio(path: str, transcript: str | None = None, do_transcribe: bool 
 
 
 def build(v: dict, a: dict | None, meta: dict, cues, wps, W: dict, prof: dict, title: str | None = None,
-          ocr_text: bool = False) -> dict:
+          ocr_text: bool = False, graphics=None) -> dict:
     S = v["seconds"]
     z = np.zeros(S)
 
@@ -379,6 +380,18 @@ def build(v: dict, a: dict | None, meta: dict, cues, wps, W: dict, prof: dict, t
         "keyframes": v["keyframes"],
     }
     res["measured"] = _measured(v, a, ebu, meta, text_sec)
+    opening_used = ((title + " ") if title else "") + (text_mod.opening_text(cues) if cues else "")
+    if opening_used.strip():
+        full = " ".join(t for _, _, t in cues) if cues else (title or "")
+        lab = text_mod.hook_lab(opening_used, full, cues, graphics, meta["duration"])
+        sec = int(np.argmax(engagement[:min(5, S)]))
+        lab["sense"] = {"motion": round(float(np.mean(v["motion"][:n_hook])), 3), "cuts": int(v["cuts"][:n_hook].sum()),
+                        "first_sound": None if not a or a["first_sound_s"] is None else round(a["first_sound_s"], 2),
+                        "first_speech": None if not a or a["first_speech_s"] is None else round(a["first_speech_s"], 2),
+                        "text_on_screen": bool(np.mean(v["text_ratio"][:n_hook]) > 0.015), "frame_quality": round(ff_q, 2),
+                        "peak_second": sec, "peak_pct": round(float(engagement[sec]) * 100),
+                        "second0_pct": round(float(engagement[0]) * 100)}
+        res["hook_lab"] = lab
     res["scenes"] = verdict_mod.scenes(v, a, engagement, S)
     res["fixes"] = _fixes(v, a, ebu, meta, prof, comps, res, cues, wps, hook_info, fmt_notes, audio_start, first_sound)
     return finish(res, v, a)

@@ -339,3 +339,72 @@ def script_from_audio(a: dict, seconds: int) -> dict:
     score = 0.35 * cov + 0.25 * cons + 0.20 * dead + 0.20 * ending
     return {"score": float(score), "notes": notes, "proxy": True,
             "metrics": {"cobertura_fala": round(coverage, 2), "maior_pausa_s": longest, "queda_final_db": round(drop, 1)}}
+
+
+# ------------------------------------------------------------------ laboratório de gancho
+_STOP = set("""que para como mais uma uns umas você voce isso esse essa esses essas dele dela pela pelo seu sua seus suas tem muito
+quando porque entao então agora tipo assim mas com por nao não sim eles elas ainda aqui ali tudo todo toda todos todas fazer faz foi
+ser são sao está esta estou são vai vou pode podem pra pro nos nas dos das num numa depois antes onde qual quais quem quanto quanta
+filho pai mãe cada outro outra mesmo mesma sobre entre sem até ate também tambem já ja só so bem the and for you your this that with""".split())
+_NUM = re.compile(r"\b\d+[.,]?\d*\s?(?:kb|mb|gb|fps|hz|%|anos?|meses|mês|dias?|horas?|minutos?|segundos?|reais|mil)\b|\br\$\s?\d+[.,]?\d*", re.I)
+
+
+def keywords(text: str, n: int = 4) -> list[str]:
+    cnt: dict[str, int] = {}
+    for w in re.findall(r"[A-Za-zÀ-ú0-9]{3,}", text):
+        lw = w.lower()
+        if lw in _STOP or lw.isdigit() or len(lw) > 14:
+            continue
+        cnt[lw] = cnt.get(lw, 0) + 1
+    return [w for w, c in sorted(cnt.items(), key=lambda kv: (-kv[1], -len(kv[0]))) if c >= 2][:n]
+
+
+def _numbers(text: str) -> list[str]:
+    out = []
+    for m in _NUM.finditer(text):
+        s = " ".join(m.group(0).split()).upper() if len(m.group(0)) <= 8 else m.group(0)
+        if s not in out:
+            out.append(s)
+    return out[:3]
+
+
+def hook_lab(opening: str, full_text: str, cues, graphics, duration: float) -> dict:
+    """Análise profunda do gancho + direções para um gancho melhor, usando só o MATERIAL REAL do vídeo.
+
+    - Diagnóstico: mecanismos que a abertura usa e os que faltam.
+    - Frase mais forte do próprio vídeo nos 15 s iniciais (se aparece tarde, sugere começar por ela).
+    - Direções: usam a pergunta, os números e a frase-resposta que o vídeo já tem; sem material, mostram a fórmula
+      com [lacunas] em vez de inventar tema. A reescrita final é do criador (ou do Claude, que lê o texto abaixo).
+    """
+    cur = score_hook_text(opening)
+    gtxt = " ".join(g[1] for g in (graphics or []))
+    pool = (gtxt + " " + full_text).strip()  # números do título/gráficos primeiro: costumam ser o contraste central
+    nums = [n for n in _numbers(pool) if len(n) > 1]
+    missing = [k for k in ("pergunta", "número/especificidade", "contrário/mito", "lacuna de curiosidade", "prova/resultado")
+               if k not in cur["signals"]][:3]
+    cands = [(a, t) for a, _, t in (cues or []) if a is not None and a < 15 and len(t.split()) >= 3]
+    cands += [(g[0], g[1]) for g in (graphics or []) if g[0] < 15 and len(g[1].split()) >= 2]
+    best = None
+    for a, t in cands:
+        sc = score_hook_text(t)["score"]
+        if best is None or sc > best["score"]:
+            best = {"t": float(a), "text": t, "score": sc}
+    strongest = best if best and best["t"] >= 2.0 and best["score"] >= cur["score"] + 0.10 else None
+    question = next((t for _, t in sorted(cands) if "?" in t), None)
+    sents = [s.strip() for s in re.split(r"(?<=[.!?])\s+", " ".join(full_text.split())) if s.strip()]
+    half = sents[len(sents) // 2:]
+    payoff = next((s for s in half if (re.search(_PAYOFF, s.lower()) or re.search(r"\d", s)) and 6 <= len(s.split()) <= 24), None)
+    ideas = []
+    if question and not cur["signals"].count("pergunta"):
+        ideas.append({"mechanism": "pergunta primeiro", "text": f"Comece por «{question.strip()}» antes de qualquer contexto.", "fill": False})
+    if len(nums) >= 2:
+        ideas.append({"mechanism": "número + contraste", "text": f"{nums[0]} contra {nums[1]}: [a pergunta que esse contraste levanta]?", "fill": True})
+    elif nums:
+        ideas.append({"mechanism": "número primeiro", "text": f"Abra com {nums[0]}: [o que esse número faz o espectador pensar]?", "fill": True})
+    if payoff:
+        ideas.append({"mechanism": "resultado primeiro", "text": f"Mostre a conclusão logo: «{payoff[:110]}» e depois explique como chegou nela.", "fill": False})
+    ideas.append({"mechanism": "contrário/mito", "text": "Todo mundo acha que [crença comum]. Mas [o que o seu vídeo mostra de diferente].", "fill": True})
+    ideas.append({"mechanism": "lacuna de curiosidade", "text": "Ninguém te conta [o detalhe que o vídeo revela]. E é isso que [consequência].", "fill": True})
+    return {"opening": opening.strip(), "score": cur["score"], "signals": cur["signals"], "missing": missing,
+            "numbers": nums, "strongest": strongest, "ideas": ideas[:3],
+            "material": {"text_start": " ".join(full_text.split())[:260], "question": question, "payoff": payoff}}

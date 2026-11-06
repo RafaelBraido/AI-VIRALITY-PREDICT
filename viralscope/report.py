@@ -75,6 +75,37 @@ _CN = {"hook": "gancho", "body": "corpo", "sustain": "sustentação", "no_drift"
        "format": "formato", "loop": "loop", "captions": "legendas", "audio_tech": "áudio técnico", "script": "roteiro"}
 
 
+def hook_block(r: dict) -> list[str]:
+    """Análise profunda do gancho: o que a pessoa vê/ouve/lê em 0–3 s, o que falta e ideias melhores."""
+    lab = r.get("hook_lab")
+    if not lab:
+        return []
+    s = lab["sense"]
+    out = [f"GANCHO (o que mais pesa) — {_pct(r['hook'])}"]
+    vis = (f"{s['cuts']} corte(s) e movimento {'baixo' if s['motion'] < 0.05 else 'ok'} ({s['motion']:.2f})" +
+           ("; texto na tela" if s["text_on_screen"] else "; sem texto na tela") + f"; 1º quadro {s['frame_quality'] * 100:.0f}%")
+    aud = "sem áudio" if s["first_sound"] is None else f"som aos {s['first_sound']}s" + ("" if s["first_speech"] is None else f", voz aos {s['first_speech']}s")
+    out.append(f"  Vê: {vis}. Ouve: {aud}.")
+    out.append(f"  Lê: «{_short(lab['opening'], 110)}»")
+    used = ", ".join(lab["signals"]) or "nenhum"
+    out.append(f"  Mecanismos usados: {used}. Faltam: {', '.join(lab['missing']) or '—'}.")
+    if s["peak_second"] >= 2 and s["peak_pct"] - s["second0_pct"] >= 8:
+        out.append(f"  O ponto mais forte chega só aos {s['peak_second']}s ({s['peak_pct']}%), e o 1º segundo está em {s['second0_pct']}%: "
+                   f"traga para o início o que acontece aos {s['peak_second']}s.")
+    st = lab.get("strongest")
+    if st:
+        out.append(f"  Sua frase mais forte nos 15 s iniciais está aos {st['t']:.0f}s: «{_short(st['text'], 90)}» ({st['score'] * 100:.0f}%). Talvez comece por ela.")
+    if lab["numbers"]:
+        out.append(f"  Números do próprio vídeo que dão gancho: {', '.join(lab['numbers'])}.")
+    out.append("  Direções para um gancho melhor (preencha o que estiver em [ ]):")
+    for i, x in enumerate(lab["ideas"], 1):
+        out.append(f"    {i}. [{x['mechanism']}] {x['text']}")
+    m = lab["material"]
+    out.append(f"  Texto do vídeo (para reescrever o gancho): «{_short(m['text_start'], 230)}»")
+    out.append("  Regra: em até 3 s, promessa específica + algo incompleto (pergunta, contraste ou número). Quem rola decide antes da 1ª frase terminar.")
+    return out
+
+
 def to_resumo(r: dict, report_url: str | None = None, name: str = "") -> str:
     """Saída curta (≈12 linhas): veredito por área + o que melhorar, em ordem. Pensada para gastar poucos tokens."""
     if r.get("mode") == "audio":
@@ -87,11 +118,12 @@ def to_resumo(r: dict, report_url: str | None = None, name: str = "") -> str:
         why = x["headline"].split(" — ", 1)[1] if " — " in x["headline"] else ""
         sc = "" if x["score"] is None else f" {x['score'] * 100:.0f}%"
         lines.append(f"  {_ICON[x['label']]} {x['area']}{sc}" + (f" — {_short(why, 95)}" if why and x["label"] != "bom" else ""))
+    lines += hook_block(r)
     acts, seen = [], set()
     for x in sorted(r.get("verdicts", []), key=lambda v: order[v["label"]]):
         for a in x["actions"]:
             k = a[:30]
-            if k not in seen and x["label"] != "sem dados":
+            if k not in seen and x["label"] != "sem dados" and not (x["area"] == "gancho" and r.get("hook_lab")):
                 seen.add(k)
                 acts.append((x["area"], a))
     if acts:

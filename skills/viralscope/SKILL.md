@@ -27,6 +27,15 @@ O objetivo é **rápido e barato**: ~10 s por vídeo, resposta curta, zero chama
 6. **Não refaça testes, não explore o código, não rode pytest**: use a ferramenta como está.
 7. **Não reexplique o que a saída já diz.** Repasse o resumo; se resumir, mantenha: nota, o que está bom, os itens de MELHORAR (o quê, por quê, como) e o link do relatório.
 
+## Gancho: o foco da resposta (obrigatório)
+O gancho é o que mais decide em vídeo curto e longo. Em **todo vídeo**, depois do veredito, faça você mesmo a parte criativa que a ferramenta não faz:
+1. Leia o bloco **GANCHO** da saída: o que a pessoa vê/ouve/lê em 0–3 s, mecanismos usados e faltantes, ponto de pico, frase mais forte do vídeo e o **"Texto do vídeo"**.
+2. **Escreva 3 ganchos novos, concretos, na voz do criador**, usando o tema real do texto e os números dele (nunca placeholders). Varie o mecanismo (pergunta, número/contraste, contrário/mito, resultado primeiro). Máx. ~14 palavras cada.
+3. Para cada um diga em uma linha **por que funciona** e marque o melhor: "Talvez este seja o melhor: … porque …".
+4. Diga também o que mudar no 1º segundo (visual/som) para o gancho aparecer cedo.
+5. Sempre há algo a melhorar no gancho; nunca responda só "o gancho está bom".
+Como um gancho funciona: em ≤ 3 s precisa de **promessa específica + algo incompleto** (pergunta, contraste, número, resultado antes da explicação). Genérico ("hoje vou falar de…") perde para o rolar do dedo.
+
 ## Como responder
 1. Rode `analyze` uma vez (saída curta). Comece pelo **VEREDITO** em linguagem direta (ex.: "o gancho está bom, mas o roteiro precisa melhorar porque…"), depois nota, o que melhorar e o link do relatório HTML. Regiões e cenas só se o usuário pedir (`--format completo`).
 2. Para **cada vídeo**, diga o que pode melhorar, com **o quê, por quê e como** (a saída já traz isso por área: gancho, roteiro, imagem, áudio, retenção). Inclua o intervalo de segundos quando houver.
