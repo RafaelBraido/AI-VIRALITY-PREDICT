@@ -104,6 +104,9 @@ viralscope learn --status
 
 Cada registro reajusta o modelo do canal (`./.viralscope/`, ou `$VIRALSCOPE_HOME`) e `analyze` passa a mostrar a probabilidade calibrada sozinho. Abaixo de 20 vídeos nada é prometido; depois disso a AUC leave-one-out mostra se o modelo presta, e ele diz o que mais separa os seus bons vídeos dos ruins.
 
+## Uso mais simples (sem instalar nada à mão)
+Adicione a skill `ViewerPredictor` ao Claude (pasta `skills/ViewerPredictor`) e mande o vídeo: *"analise este vídeo e diga o que falta para 10"*. A skill instala o `viralscope` sozinha na primeira vez (Claude Code ou sessão com execução de código). Para link do YouTube/TikTok ela tenta baixar com yt-dlp e, se a rede bloquear, pede o arquivo.
+
 ## O que falta para 10 e filtro de qualidade
 
 - `analyze` termina com **PARA CHEGAR A 10**: por área, quanto sobe a nota (conta exata: peso × diferença) e o que mudar. Mostra também a nota se todas as áreas chegarem a 90%. Mede qualidade do material; **não garante views**.

@@ -7,9 +7,12 @@ description: ViewerPredictor. Analisa um vídeo curto (Short, Reel, TikTok) ou r
 
 Analisador local (sem login, sem API paga). Código em `viralscope/`; CLI `viralscope`.
 
-## Antes de tudo
-1. Se existirem as ferramentas MCP `analyze_video` etc., use-as. Senão `viralscope --version`; se não existir: `pip install git+https://github.com/RafaelBraido/AI-VIRALITY-PREDICT` (precisa de `ffmpeg`; OCR e o resto vêm junto, sem Whisper).
-2. Se o usuário não deu o caminho do vídeo/áudio, peça. Aceita MP4, MOV, WEBM, MP3, WAV, M4A.
+## Antes de tudo (o usuário não instala nada: você faz)
+O usuário só manda o vídeo (arquivo ou link) e pede a análise. **Você prepara o ambiente sozinho, sem pedir nada e sem explicar a instalação:**
+1. Se existirem as ferramentas MCP `analyze_video` etc., use-as. Senão rode `viralscope --version 2>/dev/null || pip install -q -U git+https://github.com/RafaelBraido/AI-VIRALITY-PREDICT` (uma vez por sessão; ~1 min na primeira vez). Se faltar `ffmpeg` (`ffmpeg -version`), instale com `apt-get install -y ffmpeg` (ou `brew install ffmpeg`). Só fale com o usuário se isso falhar, e diga o erro real.
+2. **Link de vídeo** (YouTube Shorts, TikTok, Reels): tente `pip install -q yt-dlp && yt-dlp -f "b[height<=720]" -o "/tmp/vs_%(id)s.%(ext)s" URL` e analise o arquivo baixado. Se a rede bloquear (erro 403 ou similar), diga isso numa frase e peça o arquivo do vídeo (YouTube Studio → ⋮ → Baixar vídeo). Nunca invente a análise de um link que você não conseguiu abrir.
+3. Se não deu caminho nem link, peça o vídeo. Aceita MP4, MOV, WEBM, MP3, WAV, M4A.
+4. No Claude.ai sem execução de código não dá para rodar o programa: nesse caso use só o modo texto (roteiro e ganchos, colados no chat) pelo filtro de qualidade abaixo, e avise que imagem e áudio não foram medidos.
 
 ## Comandos
 - Vídeo ou áudio: `viralscope analyze A.mp4 B.mp4 C.mp4 [--platform shorts|tiktok|reels]` (vários de uma vez; ~10 s por vídeo; saída curta com VEREDITO, MELHORAR e RANKING). O texto (legenda embutida, .srt ao lado, texto na tela por OCR) é achado sozinho; `--transcript` só se o usuário tiver o roteiro. `--format completo` só se o usuário pedir regiões/cenas; `--format higgsfield` para o formato Higgsfield.
