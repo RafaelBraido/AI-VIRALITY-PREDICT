@@ -139,7 +139,11 @@ def to_resumo(r: dict, report_url: str | None = None, name: str = "") -> str:
             for i, (v, k) in enumerate(lows, 1):
                 lines.append(f"  {i}. [{_CN[k]} {v * 100:.0f}%] {_TIPS[k]}")
     if r.get("mode") != "audio" and r.get("weights"):
-        lines += plan10.lines_gaps(plan10.video_gaps(r))
+        g = plan10.video_gaps(r)
+        lines.insert(1, plan10.lines_verdict10(g, r.get("script_filter")))
+        lines += plan10.lines_gaps(g)
+        if r.get("script_filter"):
+            lines += plan10.lines_filter_short(r["script_filter"])
     weak = [s for s in r.get("scenes", []) if s["label"] == "fraca"]
     if weak:
         lines.append("Cenas fracas: " + ", ".join(f"{s['t0']:.0f}–{s['t1']:.0f}s" for s in weak[:4]))

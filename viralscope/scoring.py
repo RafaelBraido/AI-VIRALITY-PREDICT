@@ -17,7 +17,7 @@ import time
 
 import numpy as np
 
-from . import audio as audio_mod
+from . import plan10, audio as audio_mod
 from . import captions as captions_mod
 from . import profiles
 from . import text as text_mod
@@ -393,6 +393,8 @@ def build(v: dict, a: dict | None, meta: dict, cues, wps, W: dict, prof: dict, t
                         "peak_second": sec, "peak_pct": round(float(engagement[sec]) * 100),
                         "second0_pct": round(float(engagement[0]) * 100)}
         res["hook_lab"] = lab
+    if cues:
+        res["script_filter"] = plan10.script_filter(" ".join(t for _, _, t in cues), meta["duration"])
     res["scenes"] = verdict_mod.scenes(v, a, engagement, S)
     res["fixes"] = _fixes(v, a, ebu, meta, prof, comps, res, cues, wps, hook_info, fmt_notes, audio_start, first_sound)
     return finish(res, v, a)

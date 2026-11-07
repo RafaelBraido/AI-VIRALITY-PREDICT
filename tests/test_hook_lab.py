@@ -58,3 +58,12 @@ def test_script_filter_flags_weak_and_passes_strong():
     f1, f2 = plan10.script_filter(fraco), plan10.script_filter(forte)
     assert f1["score_10"] < f2["score_10"] and not f1["approved"]
     assert any(not c["ok"] and c["como"] for c in f1["criteria"])
+
+
+def test_verdict10_lines():
+    from viralscope import plan10
+    g = {"score_10": 7.4, "rows": [{"area": "gancho"}, {"area": "roteiro"}]}
+    f = {"score_10": 5, "approved": False, "criteria": [{"criterio": "x", "ok": False}]}
+    assert "Ainda não" in plan10.lines_verdict10(g, f) and "5/10" in plan10.lines_verdict10(g, f)
+    assert "Sim" in plan10.lines_verdict10({"score_10": 10.0, "rows": []}, None)
+    assert "REPROVADO" in plan10.lines_filter_short(f)[0]

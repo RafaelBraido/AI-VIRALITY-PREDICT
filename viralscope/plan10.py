@@ -125,3 +125,24 @@ def lines_filter(f: dict) -> list[str]:
             out.append(f"  [falta] {r['criterio']}. Por quê: {r['por_que']}. Como: {r['como']}.")
     out.append("  Para chegar a 10/10, cumpra todos os itens [falta]. Isso mede qualidade do roteiro, não garante views.")
     return out
+
+
+def lines_filter_short(f: dict) -> list[str]:
+    """Versão curta para o resumo do vídeo: nota e só o que falta."""
+    falta = [r["criterio"] for r in f["criteria"] if not r["ok"]]
+    out = [f"FILTRO DE QUALIDADE DO ROTEIRO: {f['score_10']}/10 — " + ("APROVADO" if f["approved"] else "REPROVADO (9/10 aprova)")]
+    if falta:
+        out.append("  Falta: " + "; ".join(falta) + ". Detalhe de cada um: `viralscope script` com o texto.")
+    return out
+
+
+def lines_verdict10(g: dict, f: dict | None) -> str:
+    """Resposta direta à pergunta 'daria 10?'."""
+    ok = g["score_10"] >= 9.95
+    falta = [r["area"] for r in g["rows"][:3]]
+    s = f"DARIA 10? {'Sim, está no topo.' if ok else 'Ainda não.'} Hoje {g['score_10']:.1f}/10"
+    if not ok:
+        s += f"; para 10 falta: {', '.join(falta)}"
+    if f is not None and not f["approved"]:
+        s += f"; o roteiro reprovou no filtro ({f['score_10']}/10)"
+    return s + "."

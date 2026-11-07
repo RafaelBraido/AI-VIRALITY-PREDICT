@@ -36,6 +36,7 @@ O gancho é o que mais decide. Leia o bloco **GANCHO** (nota, vê/ouve/lê, meca
 Como um gancho funciona: em ≤ 3 s precisa de **promessa específica + algo incompleto** (pergunta, contraste, número, resultado antes da explicação). Genérico ("hoje vou falar de…") perde para o rolar do dedo.
 
 ## O que falta para 10 (obrigatório)
+- **Em toda resposta, por vídeo, escreva a linha "DARIA 10?"** (sim/ainda não, nota de hoje em /10 e o que falta) e o bloco **FILTRO DE QUALIDADE DO ROTEIRO** (nota /10, aprovado/reprovado e o que falta). Se a saída não trouxer essas linhas, a versão instalada está antiga: peça `pip install -U git+https://github.com/RafaelBraido/AI-VIRALITY-PREDICT` e a skill nova.
 - A saída traz **PARA CHEGAR A 10**: cada área com a nota atual, quantos pontos sobe se chegar a 100% (conta exata sobre a nota) e o que mudar. Repasse isso por vídeo, do maior ganho ao menor, com o quê/por quê/como.
 - Diga a nota de hoje em /10 e a nota se as áreas chegarem a 90%. **Nunca prometa que "aplicando tudo vai dar 10" nem views**: a nota mede qualidade do material com sinais do arquivo e ainda não foi validada com views reais.
 - Para **roteiros** rode `viralscope script ARQ`: o **FILTRO DE QUALIDADE** dá nota /10 (aprovado com 9+). Antes de entregar um roteiro seu, rode o filtro, corrija os `[falta]` e rode de novo. Itens de palavra-chave podem errar; se a resposta já está clara, diga que ignorou.
