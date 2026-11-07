@@ -136,6 +136,8 @@ def cmd_script(args) -> int:
     print(f"Muletas: {r['filler_ratio'] * 100:.1f}%  ·  CTA no fim: {'sim' if r['cta_at_end'] else 'não'}")
     for n in r["notes"]:
         print(f"  - {n}")
+    from . import plan10
+    print("\n".join(plan10.lines_filter(plan10.script_filter(raw))))
     return 0
 
 

@@ -35,6 +35,12 @@ O gancho é o que mais decide. Leia o bloco **GANCHO** (nota, vê/ouve/lê, meca
 **Orçamento: ~500 tokens por vídeo no total.** Seja direto; sem repetir o que a ferramenta já mostrou.
 Como um gancho funciona: em ≤ 3 s precisa de **promessa específica + algo incompleto** (pergunta, contraste, número, resultado antes da explicação). Genérico ("hoje vou falar de…") perde para o rolar do dedo.
 
+## O que falta para 10 (obrigatório)
+- A saída traz **PARA CHEGAR A 10**: cada área com a nota atual, quantos pontos sobe se chegar a 100% (conta exata sobre a nota) e o que mudar. Repasse isso por vídeo, do maior ganho ao menor, com o quê/por quê/como.
+- Diga a nota de hoje em /10 e a nota se as áreas chegarem a 90%. **Nunca prometa que "aplicando tudo vai dar 10" nem views**: a nota mede qualidade do material com sinais do arquivo e ainda não foi validada com views reais.
+- Para **roteiros** rode `viralscope script ARQ`: o **FILTRO DE QUALIDADE** dá nota /10 (aprovado com 9+). Antes de entregar um roteiro seu, rode o filtro, corrija os `[falta]` e rode de novo. Itens de palavra-chave podem errar; se a resposta já está clara, diga que ignorou.
+- **Voz do canal:** se existir `VOZ_DO_CANAL.md` (modelo em `brand/`), leia-o antes de escrever ganchos ou roteiros e use o tom, as expressões e a estrutura dele. Se não existir, ofereça criar.
+
 ## Como responder
 1. Rode `analyze` uma vez (saída curta). Comece pelo **VEREDITO** em linguagem direta (ex.: "o gancho está bom, mas o roteiro precisa melhorar porque…"), depois nota, o que melhorar e o link do relatório HTML. Regiões e cenas só se o usuário pedir (`--format completo`).
 2. Para **cada vídeo**, diga o que pode melhorar, com **o quê, por quê e como** (a saída já traz isso por área: gancho, roteiro, imagem, áudio, retenção). Inclua o intervalo de segundos quando houver.

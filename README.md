@@ -104,6 +104,12 @@ viralscope learn --status
 
 Cada registro reajusta o modelo do canal (`./.viralscope/`, ou `$VIRALSCOPE_HOME`) e `analyze` passa a mostrar a probabilidade calibrada sozinho. Abaixo de 20 vídeos nada é prometido; depois disso a AUC leave-one-out mostra se o modelo presta, e ele diz o que mais separa os seus bons vídeos dos ruins.
 
+## O que falta para 10 e filtro de qualidade
+
+- `analyze` termina com **PARA CHEGAR A 10**: por área, quanto sobe a nota (conta exata: peso × diferença) e o que mudar. Mostra também a nota se todas as áreas chegarem a 90%. Mede qualidade do material; **não garante views**.
+- `viralscope script ROTEIRO.txt` roda um **filtro de 10 critérios** (gancho com mecanismo, número nos 10 s iniciais, promessa incompleta, frases curtas, sem muletas, resposta explícita, exemplos, sem repetição, final com fecho, duração). Aprovado com 9/10 ou mais.
+- `brand/VOZ_DO_CANAL.md` é o modelo da "voz do canal": a skill o lê para escrever ganchos e roteiros no seu jeito.
+
 ## Conectar ao Claude
 
 A skill se chama **ViewerPredictor** (`/ViewerPredictor`).

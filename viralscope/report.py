@@ -5,6 +5,8 @@ import base64
 import html
 import json
 
+from . import plan10
+
 REGION_PT = {"visual": "Visual", "auditory": "Auditory (áudio)", "language": "Language (linguagem)",
              "attention": "Attention (atenção)", "default_mode": "Default Mode (divagação)"}
 REGION_EN = {"visual": "Visual", "auditory": "Auditory", "language": "Language",
@@ -136,6 +138,8 @@ def to_resumo(r: dict, report_url: str | None = None, name: str = "") -> str:
             lines.append("PODE MELHORAR (mais baixos):")
             for i, (v, k) in enumerate(lows, 1):
                 lines.append(f"  {i}. [{_CN[k]} {v * 100:.0f}%] {_TIPS[k]}")
+    if r.get("mode") != "audio" and r.get("weights"):
+        lines += plan10.lines_gaps(plan10.video_gaps(r))
     weak = [s for s in r.get("scenes", []) if s["label"] == "fraca"]
     if weak:
         lines.append("Cenas fracas: " + ", ".join(f"{s['t0']:.0f}–{s['t1']:.0f}s" for s in weak[:4]))

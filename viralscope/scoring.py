@@ -365,6 +365,7 @@ def build(v: dict, a: dict | None, meta: dict, cues, wps, W: dict, prof: dict, t
         "format": round(fmt, 3), "loop": round(loop, 3),
         "regions": {k: (None if x is None else round(x, 3)) for k, x in regions.items()},
         "components": {k: round(x, 4) for k, x in comps.items()},
+        "weights": {k: W[k] for k in comps},
         "language_source": language_src,
         "hook_text": hook_info,
         "hook_parts": {k: round(float(x), 3) for k, (_, x) in parts.items()},

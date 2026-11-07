@@ -10,7 +10,7 @@ Projeto Python (`viralscope/`) que analisa vídeos curtos com sinais medidos no 
 ## Mapa do código
 `frames.py` (imagem) · `video.py` (cortes, fluxo óptico, por segundo) · `audio.py` (EBU R128, ritmo de fala) ·
 `text.py` (gancho, roteiro) · `captions.py` (acha o texto: .srt, embutida, OCR) · `verdict.py` (veredito e cenas) · `mcp_server.py` (MCP stdio) · `scoring.py` (canais, regiões, nota, correções) · `report.py` (texto, Higgsfield, HTML) ·
-`calibrate.py` + `history.py` (aprendizado do canal) · `profiles.py` (priors por plataforma).
+`plan10.py` (o que falta para 10 e filtro de roteiro) · `brand/VOZ_DO_CANAL.md` (modelo da voz do canal) · `calibrate.py` + `history.py` (aprendizado do canal) · `profiles.py` (priors por plataforma).
 
 ## Regras
 - **Rápido e econômico**: ~10 s por vídeo e saída curta por padrão. Não adicione etapa lenta sem medir (use `time`); mantenha o resumo em poucas linhas; toda análise precisa listar o que melhorar com o quê/por quê/como.
