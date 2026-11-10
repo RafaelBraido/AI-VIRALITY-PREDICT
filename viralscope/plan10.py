@@ -178,3 +178,50 @@ def opening_visual(v: dict, seconds: int) -> dict:
             ev.append(s)
     return {"demo_3s": demo, "cuts_0_3": cuts0, "motion_0_3": round(motion0, 3),
             "reveal_events": ev, "reveal_ok": bool(ev)}
+
+
+_VAGUE = re.compile(r"\b(coisa|coisas|negócio|negocio|algo|muito|muita|bastante|tipo|basicamente|meio que|várias|varios|diversos)\b", re.I)
+
+
+def weak_parts(raw: str, duration: float | None = None, n: int = 3) -> list[dict]:
+    """Aponta as frases mais fracas do roteiro, com o problema e a correção (sem reescrever: isso é com o Claude).
+
+    HEURÍSTICA por frase: muito longa, vaga, com muleta, repetida de outra frase ou sem dado concreto numa afirmação.
+    O tempo é aproximado (posição do texto x duração).
+    """
+    clean = " ".join(raw.split())
+    sents = [x.strip() for x in re.split(r"(?<=[.!?])\s+", clean) if x.strip()]
+    if len(sents) < 3:
+        return []
+    total = max(1, len(clean))
+    dur = duration or len(clean.split()) / 2.7
+    seen, pos, out = set(), 0, []
+    for i, sent in enumerate(sents):
+        start = clean.find(sent, pos)
+        pos = start + len(sent)
+        words = [w.strip(".,!?;:").lower() for w in sent.split()]
+        tri = {tuple(words[j:j + 3]) for j in range(len(words) - 2)}
+        probs, fixes, sev = [], [], 0.0
+        if len(words) > 22:
+            probs.append(f"frase longa ({len(words)} palavras)"); fixes.append("quebre em duas frases de até ~15 palavras"); sev += 0.6
+        if _VAGUE.search(sent) and not re.search(r"\d", sent):
+            probs.append("vaga (sem dado concreto)"); fixes.append("troque a palavra vaga por um número, nome ou exemplo real"); sev += 0.5
+        if re.match(r"^(então|tipo|né|bom|bem|aí|daí)\b", sent.lower()):
+            probs.append("começa com muleta"); fixes.append("corte a primeira palavra"); sev += 0.3
+        if tri and len(tri & seen) / len(tri) > 0.5 and i > 0:
+            probs.append("repete o que já foi dito"); fixes.append("corte ou traga informação nova"); sev += 0.55
+        seen |= tri
+        if probs:
+            out.append({"idx": i, "t": round(dur * start / total, 1), "frase": sent, "problemas": probs, "correcoes": fixes, "sev": round(sev, 2)})
+    out.sort(key=lambda x: -x["sev"])
+    return out[:n]
+
+
+def lines_weak(parts: list[dict], short: bool = False) -> list[str]:
+    if not parts:
+        return ["ONDE O ROTEIRO ESTÁ RUIM: nenhuma frase isolada com problema claro. O que falta para 10 está nos critérios acima."]
+    out = ["ONDE O ROTEIRO ESTÁ RUIM (reescreva estas frases, mantendo o sentido):"]
+    for p in parts:
+        q = p["frase"] if len(p["frase"]) <= 110 else p["frase"][:110].rsplit(" ", 1)[0] + "…"
+        out.append(f"  ~{p['t']:.0f}s «{q}» — {'; '.join(p['problemas'])}. Como: {'; '.join(p['correcoes'])}.")
+    return out

@@ -48,6 +48,7 @@ Como um gancho funciona: em ≤ 3 s precisa de **promessa específica + algo inc
 - A saída traz **PARA CHEGAR A 10**: cada área com a nota atual, quantos pontos sobe se chegar a 100% (conta exata sobre a nota) e o que mudar. Repasse isso por vídeo, do maior ganho ao menor, com o quê/por quê/como.
 - Diga a nota de hoje em /10 e a nota se as áreas chegarem a 90%. **Nunca prometa que "aplicando tudo vai dar 10" nem views**: a nota mede qualidade do material com sinais do arquivo e ainda não foi validada com views reais.
 - Para **roteiros** rode `viralscope script ARQ`: o **FILTRO DE QUALIDADE** dá nota /10 (aprovado com 9+). Antes de entregar um roteiro seu, rode o filtro, corrija os `[falta]` e rode de novo. Itens de palavra-chave podem errar; se a resposta já está clara, diga que ignorou.
+- **Roteiro ruim, trecho a trecho:** a saída traz **ONDE O ROTEIRO ESTÁ RUIM** com as frases mais fracas, o problema e a correção. Para cada uma escreva você a **versão nova** ("antes → depois"), mantendo o sentido, na voz do canal, com dado concreto no lugar de palavra vaga. Depois mostre a nota que o filtro daria com as trocas (rode `viralscope script` no texto novo) e diga o que ainda falta para 10. Se o texto veio de OCR e tem erro de leitura, avise e peça o roteiro correto.
 - **Voz do canal:** se existir `VOZ_DO_CANAL.md` (modelo em `brand/`), leia-o antes de escrever ganchos ou roteiros e use o tom, as expressões e a estrutura dele. Se não existir, ofereça criar.
 
 ## Como responder

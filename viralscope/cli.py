@@ -138,6 +138,7 @@ def cmd_script(args) -> int:
         print(f"  - {n}")
     from . import plan10
     print("\n".join(plan10.lines_filter(plan10.script_filter(raw))))
+    print("\n".join(plan10.lines_weak(plan10.weak_parts(raw))))
     return 0
 
 

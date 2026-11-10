@@ -90,3 +90,14 @@ def test_generic_intro_is_auto_rejected():
     f = plan10.script_filter(txt)
     assert f["generic_opening"] and not f["approved"]
     assert "REJEITADO" in "\n".join(plan10.lines_filter(f))
+
+
+def test_weak_parts_points_at_bad_sentences():
+    from viralscope import plan10
+    txt = ("Cavei um buraco de 2 metros no quintal. Então você faz um buraco e enche de água. Então você faz um buraco e enche de água. "
+           "Tem muita coisa que pode dar errado nesse negócio. A lona de 0,5 mm furou com 1 pedra em 8 horas.")
+    parts = plan10.weak_parts(txt)
+    quotes = " ".join(p["frase"] for p in parts)
+    assert "muita coisa" in quotes and any("repete" in " ".join(p["problemas"]) for p in parts)
+    assert "Cavei um buraco" not in quotes
+    assert plan10.lines_weak(parts)[0].startswith("ONDE O ROTEIRO")

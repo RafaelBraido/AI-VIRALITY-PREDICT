@@ -396,7 +396,9 @@ def build(v: dict, a: dict | None, meta: dict, cues, wps, W: dict, prof: dict, t
         lab["generic_opening"] = text_mod.is_generic_opening(opening_used)
         res["hook_lab"] = lab
     if cues:
-        res["script_filter"] = plan10.script_filter(" ".join(t for _, _, t in cues), meta["duration"])
+        _full = " ".join(t for _, _, t in cues)
+        res["script_filter"] = plan10.script_filter(_full, meta["duration"])
+        res["weak_parts"] = plan10.weak_parts(_full, meta["duration"])
     res["scenes"] = verdict_mod.scenes(v, a, engagement, S)
     res["fixes"] = _fixes(v, a, ebu, meta, prof, comps, res, cues, wps, hook_info, fmt_notes, audio_start, first_sound)
     return finish(res, v, a)

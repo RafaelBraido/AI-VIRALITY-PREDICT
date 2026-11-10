@@ -156,6 +156,7 @@ def to_resumo(r: dict, report_url: str | None = None, name: str = "") -> str:
         lines += plan10.lines_gaps(g)
         if r.get("script_filter"):
             lines += plan10.lines_filter_short(r["script_filter"])
+            lines += plan10.lines_weak(r.get("weak_parts") or [])
     weak = [s for s in r.get("scenes", []) if s["label"] == "fraca"]
     if weak:
         lines.append("Cenas fracas: " + ", ".join(f"{s['t0']:.0f}–{s['t1']:.0f}s" for s in weak[:4]))
