@@ -392,6 +392,8 @@ def build(v: dict, a: dict | None, meta: dict, cues, wps, W: dict, prof: dict, t
                         "text_on_screen": bool(np.mean(v["text_ratio"][:n_hook]) > 0.015), "frame_quality": round(ff_q, 2),
                         "peak_second": sec, "peak_pct": round(float(engagement[sec]) * 100),
                         "second0_pct": round(float(engagement[0]) * 100)}
+        lab["opening_visual"] = plan10.opening_visual(v, S)
+        lab["generic_opening"] = text_mod.is_generic_opening(opening_used)
         res["hook_lab"] = lab
     if cues:
         res["script_filter"] = plan10.script_filter(" ".join(t for _, _, t in cues), meta["duration"])

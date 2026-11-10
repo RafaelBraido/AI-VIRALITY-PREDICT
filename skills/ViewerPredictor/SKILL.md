@@ -36,6 +36,11 @@ O gancho é o que mais decide. Leia o bloco **GANCHO** (nota, vê/ouve/lê, meca
 - **Gancho mais ou menos (~50–74%)**: diga "tá mais ou menos", aponte o que falta (o quê/por quê/como) e dê **1 gancho alternativo** concreto: "Talvez este seja melhor: … porque …".
 - **Gancho ruim (< ~50%)**: diga com clareza que **precisa melhorar essa parte**, explique o motivo e escreva **3 ganchos novos**, concretos, na voz do criador, com o tema e os números reais do texto (nunca placeholders, máx. ~14 palavras), marcando o melhor: "Talvez este seja o melhor: … porque …". Diga também o que mudar no 1º segundo (imagem/som).
 **Orçamento: ~500 tokens por vídeo no total.** Seja direto; sem repetir o que a ferramenta já mostrou.
+**Regras de abertura (aplique em todo vídeo):**
+- **Rejeite introdução genérica** ("fala galera", "hoje eu vou…", "neste vídeo…"): a saída marca REJEITADO. Reescreva começando direto no fenômeno, no bug ou no resultado.
+- **Exija demonstração visual imediata nos 3 primeiros segundos**: o problema/bug/efeito (ex.: a hitbox, o glitch) precisa aparecer na tela já no 1º segundo, não só ser dito. A saída mostra "Demonstração visual em 0–3 s: sim/NÃO" (medido: corte ou movimento).
+- **Revelação progressiva**: não explique toda a mecânica de uma vez. Mostre primeiro a cena normal e, por volta dos 4 s, sobreponha a camada nova (malha de colisão em cores vibrantes, destaque, texto) e continue revelando camadas até o fim. A saída mostra "Revelação em camadas" (mudança visual nova entre 3 e 9 s). Se NENHUMA, dê o plano de camadas concreto para o vídeo.
+- Isso é proxy: a ferramenta mede ação e mudança visual, não sabe se é uma hitbox. Diga ao usuário o que viu pelo texto do vídeo.
 Como um gancho funciona: em ≤ 3 s precisa de **promessa específica + algo incompleto** (pergunta, contraste, número, resultado antes da explicação). Genérico ("hoje vou falar de…") perde para o rolar do dedo.
 
 ## O que falta para 10 (obrigatório)

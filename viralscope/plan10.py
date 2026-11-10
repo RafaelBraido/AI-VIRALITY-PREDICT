@@ -113,11 +113,16 @@ def script_filter(raw: str, duration: float | None = None) -> dict:
     ]
     rows = [{"criterio": c, "ok": ok, "por_que": why, "como": how} for c, ok, why, how in checks]
     score = sum(1 for r in rows if r["ok"])
-    return {"score_10": score, "approved": score >= 9, "est_duration_s": round(est, 1), "criteria": rows}
+    generic = text_mod.is_generic_opening(sents[0]) if sents else False  # rejeição automática
+    return {"score_10": score, "approved": score >= 9 and not generic, "generic_opening": generic,
+            "est_duration_s": round(est, 1), "criteria": rows}
 
 
 def lines_filter(f: dict) -> list[str]:
-    out = [f"FILTRO DE QUALIDADE: {f['score_10']}/10 — " + ("APROVADO" if f["approved"] else "REPROVADO (precisa de 9/10 para aprovar)")]
+    out = [f"FILTRO DE QUALIDADE: {f['score_10']}/10 — " + ("APROVADO" if f["approved"] else "REPROVADO (precisa de 9/10 e sem abertura genérica)")]
+    if f.get("generic_opening"):
+        out.append("  [REJEITADO] Introdução genérica (saudação, 'hoje eu vou…', 'neste vídeo…'). Por quê: quem rola decide antes da 1ª frase terminar. "
+                   "Como: comece direto no fenômeno, no bug ou no resultado, mostrando-o na tela nos primeiros 3 s.")
     for r in f["criteria"]:
         if r["ok"]:
             out.append(f"  [ok] {r['criterio']}")
@@ -131,6 +136,8 @@ def lines_filter_short(f: dict) -> list[str]:
     """Versão curta para o resumo do vídeo: nota e só o que falta."""
     falta = [r["criterio"] for r in f["criteria"] if not r["ok"]]
     out = [f"FILTRO DE QUALIDADE DO ROTEIRO: {f['score_10']}/10 — " + ("APROVADO" if f["approved"] else "REPROVADO (9/10 aprova)")]
+    if f.get("generic_opening"):
+        out.append("  REJEITADO: introdução genérica. Comece direto no fenômeno/bug/resultado.")
     if falta:
         out.append("  Falta: " + "; ".join(falta) + ". Detalhe de cada um: `viralscope script` com o texto.")
     return out
@@ -146,3 +153,28 @@ def lines_verdict10(g: dict, f: dict | None) -> str:
     if f is not None and not f["approved"]:
         s += f"; o roteiro reprovou no filtro ({f['score_10']}/10)"
     return s + "."
+
+
+def opening_visual(v: dict, seconds: int) -> dict:
+    """Regras de abertura medidas no arquivo: ação visual em 0–3 s e revelação em camadas (3–9 s).
+
+    PROXY: não sabe o que é 'hitbox' ou 'bug', só se há ação/mudança visual. Demonstração imediata = corte ou movimento
+    claro nos 3 primeiros segundos. Revelação progressiva = mudança visual nova (corte, sobreposição ou texto novo)
+    entre 3 e 9 s, depois de um começo estável.
+    """
+    import numpy as np
+    S = int(seconds)
+    n0 = max(1, min(3, S))
+    cuts0 = int(np.sum(v["cuts"][:n0]))
+    motion0 = float(np.mean(v["motion"][:n0]))
+    demo = bool(cuts0 >= 1 or motion0 >= 0.08)
+    hd = np.asarray(v["hist_dist"], dtype=float)
+    thr = float(np.mean(hd) + 1.0 * np.std(hd)) if len(hd) > 3 else 1.0
+    txt = np.asarray(v["text_ratio"], dtype=float)
+    base_txt = float(np.mean(txt[:n0]))
+    ev = []
+    for s in range(3, min(S, 10)):
+        if v["cuts"][s] or hd[s] > thr or (txt[s] - base_txt) > 0.02:
+            ev.append(s)
+    return {"demo_3s": demo, "cuts_0_3": cuts0, "motion_0_3": round(motion0, 3),
+            "reveal_events": ev, "reveal_ok": bool(ev)}

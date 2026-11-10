@@ -67,3 +67,26 @@ def test_verdict10_lines():
     assert "Ainda não" in plan10.lines_verdict10(g, f) and "5/10" in plan10.lines_verdict10(g, f)
     assert "Sim" in plan10.lines_verdict10({"score_10": 10.0, "rows": []}, None)
     assert "REPROVADO" in plan10.lines_filter_short(f)[0]
+
+
+def test_opening_visual_demo_and_reveal():
+    import numpy as np
+    from viralscope import plan10
+    S = 12
+    base = {"cuts": np.zeros(S), "motion": np.full(S, 0.01), "hist_dist": np.full(S, 0.02), "text_ratio": np.zeros(S)}
+    parado = plan10.opening_visual(base, S)
+    assert not parado["demo_3s"] and not parado["reveal_ok"]
+    v = {k: x.copy() for k, x in base.items()}
+    v["motion"][:3] = 0.2          # ação já nos 3 primeiros segundos
+    v["hist_dist"][4] = 0.9        # sobreposição/mudança nova aos 4 s
+    r = plan10.opening_visual(v, S)
+    assert r["demo_3s"] and r["reveal_events"] == [4]
+
+
+def test_generic_intro_is_auto_rejected():
+    from viralscope import plan10
+    txt = ("Fala galera, hoje eu vou mostrar um bug. " + "A hitbox do jogo falha em 3 casos e o personagem atravessa a parede em 2 segundos. " * 7
+           + "Ou seja, o motivo é a colisão. O que a gente testa agora? Comenta aí.")
+    f = plan10.script_filter(txt)
+    assert f["generic_opening"] and not f["approved"]
+    assert "REJEITADO" in "\n".join(plan10.lines_filter(f))

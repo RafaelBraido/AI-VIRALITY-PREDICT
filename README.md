@@ -111,6 +111,7 @@ Adicione a skill `ViewerPredictor` ao Claude (pasta `skills/ViewerPredictor`) e 
 
 - `analyze` termina com **PARA CHEGAR A 10**: por área, quanto sobe a nota (conta exata: peso × diferença) e o que mudar. Mostra também a nota se todas as áreas chegarem a 90%. Mede qualidade do material; **não garante views**.
 - `viralscope script ROTEIRO.txt` roda um **filtro de 10 critérios** (gancho com mecanismo, número nos 10 s iniciais, promessa incompleta, frases curtas, sem muletas, resposta explícita, exemplos, sem repetição, final com fecho, duração). Aprovado com 9/10 ou mais.
+- **Regras de abertura:** rejeita introdução genérica (também no filtro de roteiro), mede se há **demonstração visual em 0–3 s** (corte ou movimento) e se há **revelação em camadas** (mudança visual nova entre 3 e 9 s). É proxy: mede ação e mudança, não reconhece "hitbox".
 - `brand/VOZ_DO_CANAL.md` é o modelo da "voz do canal": a skill o lê para escrever ganchos e roteiros no seu jeito.
 
 ## Conectar ao Claude

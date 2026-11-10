@@ -115,6 +115,11 @@ _CTA_EARLY = r"\b(se inscreva|inscreva-se|deixa o like|curta|siga|segue|follow|s
 _FILLER = r"^(então|tipo|é |né|hum|ahn|bom,|bem,|well,|so |um |uh)"
 
 
+def is_generic_opening(text: str) -> bool:
+    """Abertura genérica (saudação, 'hoje eu vou…', 'neste vídeo…'): rejeitada pela regra do gancho."""
+    return bool(re.search(_GENERIC, text.strip().lower()))
+
+
 def score_hook_text(text: str) -> dict:
     t = text.strip().lower()
     if not t:

@@ -99,6 +99,18 @@ def hook_block(r: dict) -> list[str]:
         out.append(f"  Sua frase mais forte nos 15 s iniciais está aos {st['t']:.0f}s: «{_short(st['text'], 90)}» ({st['score'] * 100:.0f}%). Talvez comece por ela.")
     if lab["numbers"]:
         out.append(f"  Números do próprio vídeo que dão gancho: {', '.join(lab['numbers'])}.")
+    if lab.get("generic_opening"):
+        out.append("  REJEITADO: abertura genérica (saudação/'hoje eu vou…'). Comece direto no fenômeno, no bug ou no resultado.")
+    ov = lab.get("opening_visual")
+    if ov:
+        if ov["demo_3s"]:
+            out.append(f"  Demonstração visual em 0–3 s: sim ({ov['cuts_0_3']} corte(s), movimento {ov['motion_0_3']:.2f}).")
+        else:
+            out.append("  Demonstração visual em 0–3 s: NÃO. Mostre o fenômeno/bug na tela já no 1º segundo (movimento ou corte) e explique depois.")
+        if ov["reveal_ok"]:
+            out.append(f"  Revelação em camadas: mudança visual nova aos {', '.join(str(x) + 's' for x in ov['reveal_events'][:3])}. Bom: o espectador ganha algo novo depois da abertura.")
+        else:
+            out.append("  Revelação em camadas: NENHUMA entre 3 e 9 s. Mostre primeiro a cena normal e, por volta dos 4 s, sobreponha a camada nova (malha, destaque, texto) para renovar a atenção.")
     out.append("  Direções para um gancho melhor (preencha o que estiver em [ ]):")
     for i, x in enumerate(lab["ideas"], 1):
         out.append(f"    {i}. [{x['mechanism']}] {x['text']}")
